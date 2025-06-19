@@ -1,9 +1,23 @@
-import { Link, useLocation } from "wouter";
-import { Calculator, BarChart3, List, Book, File, Receipt, 
-         University, Edit, FileText, DollarSign, ChartBar, 
-         Scale, PieChart, Users, Settings } from "lucide-react";
-import CompanySwitcher from "../CompanySwitcher";
-import { usePermissions } from "@/hooks/usePermissions";
+import { Link, useLocation } from 'wouter';
+import {
+  Calculator,
+  BarChart3,
+  List,
+  Book,
+  File,
+  Receipt,
+  University,
+  Edit,
+  FileText,
+  DollarSign,
+  ChartBar,
+  Scale,
+  PieChart,
+  Users,
+  Settings,
+} from 'lucide-react';
+import CompanySwitcher from '../CompanySwitcher';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface NavigationItem {
   name: string;
@@ -14,106 +28,106 @@ interface NavigationItem {
 
 const navigation: NavigationItem[] = [
   {
-    name: "Dashboard",
-    href: "/dashboard",
+    name: 'Dashboard',
+    href: '/dashboard',
     icon: BarChart3,
-    permission: "DASHBOARD_VIEW",
+    permission: 'DASHBOARD_VIEW',
   },
 ];
 
 const accountingSection: NavigationItem[] = [
   {
-    name: "Chart of Accounts",
-    href: "/chart-of-accounts",
+    name: 'Chart of Accounts',
+    href: '/chart-of-accounts',
     icon: List,
-    permission: "ACCOUNTS_VIEW",
+    permission: 'ACCOUNTS_VIEW',
   },
   {
-    name: "General Ledger",
-    href: "/general-ledger",
+    name: 'General Ledger',
+    href: '/general-ledger',
     icon: Book,
-    permission: "ACCOUNTS_VIEW",
+    permission: 'ACCOUNTS_VIEW',
   },
   {
-    name: "Accounts Receivable",
-    href: "/accounts-receivable",
+    name: 'Accounts Receivable',
+    href: '/accounts-receivable',
     icon: File,
-    permission: "CUSTOMERS_VIEW",
+    permission: 'CUSTOMERS_VIEW',
   },
   {
-    name: "Accounts Payable",
-    href: "/accounts-payable",
+    name: 'Accounts Payable',
+    href: '/accounts-payable',
     icon: Receipt,
-    permission: "VENDORS_VIEW",
+    permission: 'VENDORS_VIEW',
   },
   {
-    name: "Bank Reconciliation",
-    href: "/bank-reconciliation",
+    name: 'Bank Reconciliation',
+    href: '/bank-reconciliation',
     icon: University,
-    permission: "JOURNAL_VIEW",
+    permission: 'JOURNAL_VIEW',
   },
 ];
 
 const transactionSection: NavigationItem[] = [
   {
-    name: "Journal Entries",
-    href: "/journal-entries",
+    name: 'Journal Entries',
+    href: '/journal-entries',
     icon: Edit,
-    permission: "JOURNAL_VIEW",
+    permission: 'JOURNAL_VIEW',
   },
   {
-    name: "Invoices",
-    href: "/invoices",
+    name: 'Invoices',
+    href: '/invoices',
     icon: File,
-    permission: "INVOICES_VIEW",
+    permission: 'INVOICES_VIEW',
   },
   {
-    name: "Bills",
-    href: "/bills",
+    name: 'Bills',
+    href: '/bills',
     icon: FileText,
-    permission: "BILLS_VIEW",
+    permission: 'BILLS_VIEW',
   },
   {
-    name: "Payments",
-    href: "/payments",
+    name: 'Payments',
+    href: '/payments',
     icon: DollarSign,
-    permission: "JOURNAL_VIEW",
+    permission: 'JOURNAL_VIEW',
   },
 ];
 
 const reportSection: NavigationItem[] = [
   {
-    name: "Financial Statements",
-    href: "/financial-statements",
+    name: 'Financial Statements',
+    href: '/financial-statements',
     icon: ChartBar,
-    permission: "REPORTS_VIEW",
+    permission: 'REPORTS_VIEW',
   },
   {
-    name: "Trial Balance",
-    href: "/trial-balance",
+    name: 'Trial Balance',
+    href: '/trial-balance',
     icon: Scale,
-    permission: "REPORTS_VIEW",
+    permission: 'REPORTS_VIEW',
   },
   {
-    name: "Custom Reports",
-    href: "/custom-reports",
+    name: 'Custom Reports',
+    href: '/custom-reports',
     icon: PieChart,
-    permission: "REPORTS_CUSTOM",
+    permission: 'REPORTS_CUSTOM',
   },
 ];
 
 const adminSection: NavigationItem[] = [
   {
-    name: "User Management",
-    href: "/user-management",
+    name: 'User Management',
+    href: '/user-management',
     icon: Users,
-    permission: "USER_VIEW",
+    permission: 'USER_VIEW',
   },
   {
-    name: "Settings",
-    href: "/settings",
+    name: 'Settings',
+    href: '/settings',
     icon: Settings,
-    permission: "SETTINGS_VIEW",
+    permission: 'SETTINGS_VIEW',
   },
 ];
 
@@ -122,12 +136,14 @@ export default function Sidebar() {
   const { can } = usePermissions();
 
   const isActive = (href: string) => {
-    return location === href || (href !== "/dashboard" && location.startsWith(href));
+    return (
+      location === href || (href !== '/dashboard' && location.startsWith(href))
+    );
   };
 
   const NavItem = ({ item }: { item: NavigationItem }) => {
     const Icon = item.icon;
-    
+
     // Check permissions if permission is specified
     if (item.permission && !can(item.permission as any)) {
       return null;
@@ -135,7 +151,9 @@ export default function Sidebar() {
 
     return (
       <Link href={item.href}>
-        <div className={`accounting-nav-item ${isActive(item.href) ? 'active' : ''}`}>
+        <div
+          className={`accounting-nav-item ${isActive(item.href) ? 'active' : ''}`}
+        >
           <Icon className="w-5 h-5 mr-3" />
           {item.name}
         </div>
@@ -145,7 +163,9 @@ export default function Sidebar() {
 
   // Filter sections based on permissions
   const getVisibleItems = (items: NavigationItem[]) => {
-    return items.filter(item => !item.permission || can(item.permission as any));
+    return items.filter(
+      (item) => !item.permission || can(item.permission as any),
+    );
   };
 
   return (
@@ -156,9 +176,11 @@ export default function Sidebar() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
             <Calculator className="text-primary-foreground text-sm" />
           </div>
-          <h1 className="text-lg font-semibold text-foreground">AccountFlow Pro</h1>
+          <h1 className="text-lg font-semibold text-foreground">
+            AccountFlow Pro
+          </h1>
         </div>
-        
+
         <CompanySwitcher />
       </div>
 
@@ -168,7 +190,7 @@ export default function Sidebar() {
           {navigation.map((item) => (
             <NavItem key={item.name} item={item} />
           ))}
-          
+
           {/* Accounting Section */}
           {getVisibleItems(accountingSection).length > 0 && (
             <div className="mt-6">

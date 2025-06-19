@@ -1,4 +1,4 @@
-import { apiRequest } from "./queryClient";
+import { apiRequest } from './queryClient';
 
 export interface AuthUser {
   id: number;
@@ -20,8 +20,14 @@ export interface AuthResponse {
   companies: Company[];
 }
 
-export async function login(username: string, password: string): Promise<AuthResponse> {
-  const response = await apiRequest('POST', '/api/auth/login', { username, password });
+export async function login(
+  username: string,
+  password: string,
+): Promise<AuthResponse> {
+  const response = await apiRequest('POST', '/api/auth/login', {
+    username,
+    password,
+  });
   return response.json();
 }
 

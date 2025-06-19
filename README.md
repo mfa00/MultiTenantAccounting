@@ -59,15 +59,18 @@ npm install -g tsx drizzle-kit
 ### 3. Neon Database Setup
 
 1. **Create Neon Account**:
+
    - Go to [neon.tech](https://neon.tech)
    - Sign up for a free account
    - Create a new project
 
 2. **Get Database URL**:
+
    - In your Neon dashboard, go to "Connection Details"
    - Copy the connection string (format: `postgresql://username:password@hostname/database`)
 
 3. **Create Environment File**:
+
 ```bash
 # Create .env file
 cp .env.example .env
@@ -77,6 +80,7 @@ nano .env
 ```
 
 Add the following to your `.env` file:
+
 ```env
 DATABASE_URL="postgresql://username:password@hostname/database?sslmode=require"
 SESSION_SECRET="your-super-secret-session-key-change-this-in-production"
@@ -107,34 +111,39 @@ npm start
 ### 6. PM2 Process Management
 
 Create PM2 ecosystem file:
+
 ```bash
 nano ecosystem.config.js
 ```
 
 Add the following configuration:
+
 ```javascript
 module.exports = {
-  apps: [{
-    name: 'accountflow-pro',
-    script: 'npm',
-    args: 'start',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 5000
+  apps: [
+    {
+      name: 'accountflow-pro',
+      script: 'npm',
+      args: 'start',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5000,
+      },
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      error_file: './logs/err.log',
+      out_file: './logs/out.log',
+      log_file: './logs/combined.log',
+      time: true,
     },
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true
-  }]
+  ],
 };
 ```
 
 Start the application:
+
 ```bash
 # Create logs directory
 mkdir logs
@@ -153,11 +162,13 @@ sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -
 ### 7. Nginx Reverse Proxy (Optional)
 
 Create Nginx configuration:
+
 ```bash
 sudo nano /etc/nginx/sites-available/accountflow
 ```
 
 Add the following configuration:
+
 ```nginx
 server {
     listen 80;
@@ -178,6 +189,7 @@ server {
 ```
 
 Enable the site:
+
 ```bash
 # Enable the site
 sudo ln -s /etc/nginx/sites-available/accountflow /etc/nginx/sites-enabled/
@@ -195,6 +207,7 @@ sudo systemctl enable nginx
 ### 8. SSL Certificate (Optional)
 
 Install Certbot for free SSL:
+
 ```bash
 # Install Certbot
 sudo apt install certbot python3-certbot-nginx -y
@@ -224,6 +237,7 @@ sudo ufw status
 ### 1. Create Admin User
 
 The application will be available at:
+
 - Without Nginx: `http://your-server-ip:5000`
 - With Nginx: `http://your-domain.com`
 
@@ -235,6 +249,7 @@ The application will be available at:
 ### 2. Sample Data (Optional)
 
 To populate with sample data for testing:
+
 ```bash
 # Connect to your Neon database and run:
 npm run db:seed  # If you create a seed script
@@ -243,6 +258,7 @@ npm run db:seed  # If you create a seed script
 ## Monitoring and Maintenance
 
 ### PM2 Commands
+
 ```bash
 # Check application status
 pm2 status
@@ -261,6 +277,7 @@ pm2 monit
 ```
 
 ### Database Backup
+
 ```bash
 # Backup database (run from local machine)
 pg_dump "postgresql://username:password@hostname/database" > backup.sql
@@ -270,6 +287,7 @@ psql "postgresql://username:password@hostname/database" < backup.sql
 ```
 
 ### Update Application
+
 ```bash
 # Pull latest changes
 git pull origin main
@@ -292,15 +310,18 @@ pm2 restart accountflow-pro
 ### Common Issues
 
 1. **Database Connection Failed**:
+
    - Verify DATABASE_URL in .env file
    - Check Neon database is active
    - Ensure SSL mode is enabled
 
 2. **Permission Denied**:
+
    - Check file permissions: `chmod +x node_modules/.bin/*`
    - Verify user has access to application directory
 
 3. **Port Already in Use**:
+
    - Change PORT in .env file
    - Kill existing processes: `sudo lsof -i :5000`
 
@@ -309,18 +330,19 @@ pm2 restart accountflow-pro
    - Check Node.js version compatibility
 
 ### Logs Location
+
 - PM2 logs: `./logs/`
 - Nginx logs: `/var/log/nginx/`
 - Application logs: Check PM2 logs
 
 ## Environment Variables
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| DATABASE_URL | Neon database connection string | Yes | - |
-| SESSION_SECRET | Secret key for sessions | Yes | - |
-| NODE_ENV | Environment mode | No | development |
-| PORT | Application port | No | 5000 |
+| Variable       | Description                     | Required | Default     |
+| -------------- | ------------------------------- | -------- | ----------- |
+| DATABASE_URL   | Neon database connection string | Yes      | -           |
+| SESSION_SECRET | Secret key for sessions         | Yes      | -           |
+| NODE_ENV       | Environment mode                | No       | development |
+| PORT           | Application port                | No       | 5000        |
 
 ## Architecture
 
@@ -343,6 +365,7 @@ pm2 restart accountflow-pro
 ## Support
 
 For issues or questions:
+
 1. Check the troubleshooting section
 2. Review logs for error details
 3. Verify all environment variables are set correctly

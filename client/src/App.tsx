@@ -1,22 +1,26 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
-import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import AppLayout from "@/components/layout/AppLayout";
-import ChartOfAccounts from "@/pages/accounting/ChartOfAccounts";
-import GeneralLedger from "@/pages/accounting/GeneralLedger";
-import JournalEntries from "@/pages/transactions/JournalEntries";
-import Invoices from "@/pages/transactions/Invoices";
-import FinancialStatements from "@/pages/reports/FinancialStatements";
-import UserManagement from "@/pages/admin/UserManagement";
-import Profile from "@/pages/Profile";
-import NotFound from "@/pages/not-found";
+import { Switch, Route } from 'wouter';
+import { queryClient } from './lib/queryClient';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { useAuth } from '@/hooks/useAuth';
+import Login from '@/pages/Login';
+import Dashboard from '@/pages/Dashboard';
+import AppLayout from '@/components/layout/AppLayout';
+import ChartOfAccounts from '@/pages/accounting/ChartOfAccounts';
+import GeneralLedger from '@/pages/accounting/GeneralLedger';
+import JournalEntries from '@/pages/transactions/JournalEntries';
+import Invoices from '@/pages/transactions/Invoices';
+import FinancialStatements from '@/pages/reports/FinancialStatements';
+import UserManagement from '@/pages/admin/UserManagement';
+import Profile from '@/pages/Profile';
+import NotFound from '@/pages/not-found';
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({
+  component: Component,
+}: {
+  component: React.ComponentType;
+}) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -45,15 +49,42 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/chart-of-accounts" component={() => <ProtectedRoute component={ChartOfAccounts} />} />
-      <Route path="/general-ledger" component={() => <ProtectedRoute component={GeneralLedger} />} />
-      <Route path="/journal-entries" component={() => <ProtectedRoute component={JournalEntries} />} />
-      <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
-      <Route path="/financial-statements" component={() => <ProtectedRoute component={FinancialStatements} />} />
-      <Route path="/user-management" component={() => <ProtectedRoute component={UserManagement} />} />
-      <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
+      <Route
+        path="/"
+        component={() => <ProtectedRoute component={Dashboard} />}
+      />
+      <Route
+        path="/dashboard"
+        component={() => <ProtectedRoute component={Dashboard} />}
+      />
+      <Route
+        path="/chart-of-accounts"
+        component={() => <ProtectedRoute component={ChartOfAccounts} />}
+      />
+      <Route
+        path="/general-ledger"
+        component={() => <ProtectedRoute component={GeneralLedger} />}
+      />
+      <Route
+        path="/journal-entries"
+        component={() => <ProtectedRoute component={JournalEntries} />}
+      />
+      <Route
+        path="/invoices"
+        component={() => <ProtectedRoute component={Invoices} />}
+      />
+      <Route
+        path="/financial-statements"
+        component={() => <ProtectedRoute component={FinancialStatements} />}
+      />
+      <Route
+        path="/user-management"
+        component={() => <ProtectedRoute component={UserManagement} />}
+      />
+      <Route
+        path="/profile"
+        component={() => <ProtectedRoute component={Profile} />}
+      />
       <Route component={NotFound} />
     </Switch>
   );

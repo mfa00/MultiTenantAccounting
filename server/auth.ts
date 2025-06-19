@@ -1,6 +1,6 @@
-import bcrypt from "bcrypt";
-import { storage } from "./storage";
-import type { User } from "@shared/schema";
+import bcrypt from 'bcrypt';
+import { storage } from './storage';
+// import type { User } from '@shared/schema'; // Unused
 
 export interface AuthenticatedUser {
   id: number;
@@ -14,13 +14,21 @@ export async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, 10);
 }
 
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  hash: string,
+): Promise<boolean> {
   return await bcrypt.compare(password, hash);
 }
 
-export async function authenticateUser(username: string, password: string): Promise<AuthenticatedUser | null> {
-  const user = await storage.getUserByUsername(username) || await storage.getUserByEmail(username);
-  
+export async function authenticateUser(
+  username: string,
+  password: string,
+): Promise<AuthenticatedUser | null> {
+  const user =
+    (await storage.getUserByUsername(username)) ||
+    (await storage.getUserByEmail(username));
+
   if (!user || !user.isActive) {
     return null;
   }
@@ -55,14 +63,16 @@ export async function getUserWithCompanies(userId: number) {
       lastName: user.lastName,
       globalRole: user.globalRole,
     },
-    companies: companies.map(company => {
-      const userCompany = userCompanies.find(uc => uc.companyId === company.id);
-      
+    companies: companies.map((company) => {
+      const userCompany = userCompanies.find(
+        (uc) => uc.companyId === company.id,
+      );
+
       let role = userCompany?.role || 'assistant';
       if (user.globalRole === 'global_administrator' && !userCompany) {
         role = 'administrator';
       }
-      
+
       return {
         ...company,
         role: role,

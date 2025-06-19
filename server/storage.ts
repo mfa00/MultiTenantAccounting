@@ -1,14 +1,37 @@
-import { 
-  users, companies, userCompanies, accounts, journalEntries, journalEntryLines,
-  customers, vendors, invoices, bills,
-  type User, type InsertUser, type Company, type InsertCompany,
-  type UserCompany, type InsertUserCompany, type Account, type InsertAccount,
-  type JournalEntry, type InsertJournalEntry, type JournalEntryLine, type InsertJournalEntryLine,
-  type Customer, type InsertCustomer, type Vendor, type InsertVendor,
-  type Invoice, type InsertInvoice, type Bill, type InsertBill
-} from "@shared/schema";
-import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import {
+  users,
+  companies,
+  userCompanies,
+  accounts,
+  journalEntries,
+  journalEntryLines,
+  customers,
+  vendors,
+  invoices,
+  bills,
+  type User,
+  type InsertUser,
+  type Company,
+  type InsertCompany,
+  type UserCompany,
+  type InsertUserCompany,
+  type Account,
+  type InsertAccount,
+  type JournalEntry,
+  type InsertJournalEntry,
+  type JournalEntryLine,
+  type InsertJournalEntryLine,
+  type Customer,
+  type InsertCustomer,
+  type Vendor,
+  type InsertVendor,
+  type Invoice,
+  type InsertInvoice,
+  type Bill,
+  type InsertBill,
+} from '@shared/schema';
+import { db } from './db';
+import { eq, and, desc, asc } from 'drizzle-orm';
 
 export interface IStorage {
   // User methods
@@ -23,47 +46,73 @@ export interface IStorage {
   getCompaniesByUser(userId: number): Promise<Company[]>;
   getAllCompanies(): Promise<Company[]>;
   createCompany(company: InsertCompany): Promise<Company>;
-  updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company | undefined>;
+  updateCompany(
+    id: number,
+    company: Partial<InsertCompany>,
+  ): Promise<Company | undefined>;
 
   // User-Company methods
-  getUserCompany(userId: number, companyId: number): Promise<UserCompany | undefined>;
+  getUserCompany(
+    userId: number,
+    companyId: number,
+  ): Promise<UserCompany | undefined>;
   getUserCompanies(userId: number): Promise<UserCompany[]>;
   createUserCompany(userCompany: InsertUserCompany): Promise<UserCompany>;
-  updateUserCompany(id: number, userCompany: Partial<InsertUserCompany>): Promise<UserCompany | undefined>;
+  updateUserCompany(
+    id: number,
+    userCompany: Partial<InsertUserCompany>,
+  ): Promise<UserCompany | undefined>;
 
   // Account methods
   getAccount(id: number): Promise<Account | undefined>;
   getAccountsByCompany(companyId: number): Promise<Account[]>;
   createAccount(account: InsertAccount): Promise<Account>;
-  updateAccount(id: number, account: Partial<InsertAccount>): Promise<Account | undefined>;
+  updateAccount(
+    id: number,
+    account: Partial<InsertAccount>,
+  ): Promise<Account | undefined>;
 
   // Journal Entry methods
   getJournalEntry(id: number): Promise<JournalEntry | undefined>;
   getJournalEntriesByCompany(companyId: number): Promise<JournalEntry[]>;
   createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
-  updateJournalEntry(id: number, entry: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined>;
+  updateJournalEntry(
+    id: number,
+    entry: Partial<InsertJournalEntry>,
+  ): Promise<JournalEntry | undefined>;
 
   // Journal Entry Line methods
   getJournalEntryLinesByEntry(entryId: number): Promise<JournalEntryLine[]>;
-  createJournalEntryLine(line: InsertJournalEntryLine): Promise<JournalEntryLine>;
+  createJournalEntryLine(
+    line: InsertJournalEntryLine,
+  ): Promise<JournalEntryLine>;
 
   // Customer methods
   getCustomer(id: number): Promise<Customer | undefined>;
   getCustomersByCompany(companyId: number): Promise<Customer[]>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
-  updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
+  updateCustomer(
+    id: number,
+    customer: Partial<InsertCustomer>,
+  ): Promise<Customer | undefined>;
 
   // Vendor methods
   getVendor(id: number): Promise<Vendor | undefined>;
   getVendorsByCompany(companyId: number): Promise<Vendor[]>;
   createVendor(vendor: InsertVendor): Promise<Vendor>;
-  updateVendor(id: number, vendor: Partial<InsertVendor>): Promise<Vendor | undefined>;
+  updateVendor(
+    id: number,
+    vendor: Partial<InsertVendor>,
+  ): Promise<Vendor | undefined>;
 
   // Invoice methods
   getInvoice(id: number): Promise<Invoice | undefined>;
   getInvoicesByCompany(companyId: number): Promise<Invoice[]>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
-  updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
+  updateInvoice(
+    id: number,
+    invoice: Partial<InsertInvoice>,
+  ): Promise<Invoice | undefined>;
 
   // Bill methods
   getBill(id: number): Promise<Bill | undefined>;
@@ -80,7 +129,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
     return user || undefined;
   }
 
@@ -94,14 +146,24 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUser(id: number, updateUser: Partial<InsertUser>): Promise<User | undefined> {
-    const [user] = await db.update(users).set(updateUser).where(eq(users.id, id)).returning();
+  async updateUser(
+    id: number,
+    updateUser: Partial<InsertUser>,
+  ): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(updateUser)
+      .where(eq(users.id, id))
+      .returning();
     return user || undefined;
   }
 
   // Company methods
   async getCompany(id: number): Promise<Company | undefined> {
-    const [company] = await db.select().from(companies).where(eq(companies.id, id));
+    const [company] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.id, id));
     return company || undefined;
   }
 
@@ -118,9 +180,11 @@ export class DatabaseStorage implements IStorage {
       .select({ company: companies })
       .from(userCompanies)
       .innerJoin(companies, eq(userCompanies.companyId, companies.id))
-      .where(and(eq(userCompanies.userId, userId), eq(userCompanies.isActive, true)));
-    
-    return userCompaniesData.map(uc => uc.company);
+      .where(
+        and(eq(userCompanies.userId, userId), eq(userCompanies.isActive, true)),
+      );
+
+    return userCompaniesData.map((uc) => uc.company);
   }
 
   async getAllCompanies(): Promise<Company[]> {
@@ -132,21 +196,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
-    const [company] = await db.insert(companies).values(insertCompany).returning();
+    const [company] = await db
+      .insert(companies)
+      .values(insertCompany)
+      .returning();
     return company;
   }
 
-  async updateCompany(id: number, updateCompany: Partial<InsertCompany>): Promise<Company | undefined> {
-    const [company] = await db.update(companies).set(updateCompany).where(eq(companies.id, id)).returning();
+  async updateCompany(
+    id: number,
+    updateCompany: Partial<InsertCompany>,
+  ): Promise<Company | undefined> {
+    const [company] = await db
+      .update(companies)
+      .set(updateCompany)
+      .where(eq(companies.id, id))
+      .returning();
     return company || undefined;
   }
 
   // User-Company methods
-  async getUserCompany(userId: number, companyId: number): Promise<UserCompany | undefined> {
+  async getUserCompany(
+    userId: number,
+    companyId: number,
+  ): Promise<UserCompany | undefined> {
     const [userCompany] = await db
       .select()
       .from(userCompanies)
-      .where(and(eq(userCompanies.userId, userId), eq(userCompanies.companyId, companyId)));
+      .where(
+        and(
+          eq(userCompanies.userId, userId),
+          eq(userCompanies.companyId, companyId),
+        ),
+      );
     return userCompany || undefined;
   }
 
@@ -154,22 +236,39 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(userCompanies)
-      .where(and(eq(userCompanies.userId, userId), eq(userCompanies.isActive, true)));
+      .where(
+        and(eq(userCompanies.userId, userId), eq(userCompanies.isActive, true)),
+      );
   }
 
-  async createUserCompany(insertUserCompany: InsertUserCompany): Promise<UserCompany> {
-    const [userCompany] = await db.insert(userCompanies).values(insertUserCompany).returning();
+  async createUserCompany(
+    insertUserCompany: InsertUserCompany,
+  ): Promise<UserCompany> {
+    const [userCompany] = await db
+      .insert(userCompanies)
+      .values(insertUserCompany)
+      .returning();
     return userCompany;
   }
 
-  async updateUserCompany(id: number, updateUserCompany: Partial<InsertUserCompany>): Promise<UserCompany | undefined> {
-    const [userCompany] = await db.update(userCompanies).set(updateUserCompany).where(eq(userCompanies.id, id)).returning();
+  async updateUserCompany(
+    id: number,
+    updateUserCompany: Partial<InsertUserCompany>,
+  ): Promise<UserCompany | undefined> {
+    const [userCompany] = await db
+      .update(userCompanies)
+      .set(updateUserCompany)
+      .where(eq(userCompanies.id, id))
+      .returning();
     return userCompany || undefined;
   }
 
   // Account methods
   async getAccount(id: number): Promise<Account | undefined> {
-    const [account] = await db.select().from(accounts).where(eq(accounts.id, id));
+    const [account] = await db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.id, id));
     return account || undefined;
   }
 
@@ -177,23 +276,38 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(accounts)
-      .where(and(eq(accounts.companyId, companyId), eq(accounts.isActive, true)))
+      .where(
+        and(eq(accounts.companyId, companyId), eq(accounts.isActive, true)),
+      )
       .orderBy(asc(accounts.code));
   }
 
   async createAccount(insertAccount: InsertAccount): Promise<Account> {
-    const [account] = await db.insert(accounts).values(insertAccount).returning();
+    const [account] = await db
+      .insert(accounts)
+      .values(insertAccount)
+      .returning();
     return account;
   }
 
-  async updateAccount(id: number, updateAccount: Partial<InsertAccount>): Promise<Account | undefined> {
-    const [account] = await db.update(accounts).set(updateAccount).where(eq(accounts.id, id)).returning();
+  async updateAccount(
+    id: number,
+    updateAccount: Partial<InsertAccount>,
+  ): Promise<Account | undefined> {
+    const [account] = await db
+      .update(accounts)
+      .set(updateAccount)
+      .where(eq(accounts.id, id))
+      .returning();
     return account || undefined;
   }
 
   // Journal Entry methods
   async getJournalEntry(id: number): Promise<JournalEntry | undefined> {
-    const [entry] = await db.select().from(journalEntries).where(eq(journalEntries.id, id));
+    const [entry] = await db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.id, id));
     return entry || undefined;
   }
 
@@ -205,32 +319,54 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(journalEntries.date));
   }
 
-  async createJournalEntry(insertEntry: InsertJournalEntry): Promise<JournalEntry> {
-    const [entry] = await db.insert(journalEntries).values(insertEntry).returning();
+  async createJournalEntry(
+    insertEntry: InsertJournalEntry,
+  ): Promise<JournalEntry> {
+    const [entry] = await db
+      .insert(journalEntries)
+      .values(insertEntry)
+      .returning();
     return entry;
   }
 
-  async updateJournalEntry(id: number, updateEntry: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined> {
-    const [entry] = await db.update(journalEntries).set(updateEntry).where(eq(journalEntries.id, id)).returning();
+  async updateJournalEntry(
+    id: number,
+    updateEntry: Partial<InsertJournalEntry>,
+  ): Promise<JournalEntry | undefined> {
+    const [entry] = await db
+      .update(journalEntries)
+      .set(updateEntry)
+      .where(eq(journalEntries.id, id))
+      .returning();
     return entry || undefined;
   }
 
   // Journal Entry Line methods
-  async getJournalEntryLinesByEntry(entryId: number): Promise<JournalEntryLine[]> {
+  async getJournalEntryLinesByEntry(
+    entryId: number,
+  ): Promise<JournalEntryLine[]> {
     return await db
       .select()
       .from(journalEntryLines)
       .where(eq(journalEntryLines.journalEntryId, entryId));
   }
 
-  async createJournalEntryLine(insertLine: InsertJournalEntryLine): Promise<JournalEntryLine> {
-    const [line] = await db.insert(journalEntryLines).values(insertLine).returning();
+  async createJournalEntryLine(
+    insertLine: InsertJournalEntryLine,
+  ): Promise<JournalEntryLine> {
+    const [line] = await db
+      .insert(journalEntryLines)
+      .values(insertLine)
+      .returning();
     return line;
   }
 
   // Customer methods
   async getCustomer(id: number): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, id));
     return customer || undefined;
   }
 
@@ -238,17 +374,29 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(customers)
-      .where(and(eq(customers.companyId, companyId), eq(customers.isActive, true)))
+      .where(
+        and(eq(customers.companyId, companyId), eq(customers.isActive, true)),
+      )
       .orderBy(asc(customers.name));
   }
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
-    const [customer] = await db.insert(customers).values(insertCustomer).returning();
+    const [customer] = await db
+      .insert(customers)
+      .values(insertCustomer)
+      .returning();
     return customer;
   }
 
-  async updateCustomer(id: number, updateCustomer: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const [customer] = await db.update(customers).set(updateCustomer).where(eq(customers.id, id)).returning();
+  async updateCustomer(
+    id: number,
+    updateCustomer: Partial<InsertCustomer>,
+  ): Promise<Customer | undefined> {
+    const [customer] = await db
+      .update(customers)
+      .set(updateCustomer)
+      .where(eq(customers.id, id))
+      .returning();
     return customer || undefined;
   }
 
@@ -271,14 +419,24 @@ export class DatabaseStorage implements IStorage {
     return vendor;
   }
 
-  async updateVendor(id: number, updateVendor: Partial<InsertVendor>): Promise<Vendor | undefined> {
-    const [vendor] = await db.update(vendors).set(updateVendor).where(eq(vendors.id, id)).returning();
+  async updateVendor(
+    id: number,
+    updateVendor: Partial<InsertVendor>,
+  ): Promise<Vendor | undefined> {
+    const [vendor] = await db
+      .update(vendors)
+      .set(updateVendor)
+      .where(eq(vendors.id, id))
+      .returning();
     return vendor || undefined;
   }
 
   // Invoice methods
   async getInvoice(id: number): Promise<Invoice | undefined> {
-    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, id));
     return invoice || undefined;
   }
 
@@ -291,12 +449,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInvoice(insertInvoice: InsertInvoice): Promise<Invoice> {
-    const [invoice] = await db.insert(invoices).values(insertInvoice).returning();
+    const [invoice] = await db
+      .insert(invoices)
+      .values(insertInvoice)
+      .returning();
     return invoice;
   }
 
-  async updateInvoice(id: number, updateInvoice: Partial<InsertInvoice>): Promise<Invoice | undefined> {
-    const [invoice] = await db.update(invoices).set(updateInvoice).where(eq(invoices.id, id)).returning();
+  async updateInvoice(
+    id: number,
+    updateInvoice: Partial<InsertInvoice>,
+  ): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .update(invoices)
+      .set(updateInvoice)
+      .where(eq(invoices.id, id))
+      .returning();
     return invoice || undefined;
   }
 
@@ -319,8 +487,15 @@ export class DatabaseStorage implements IStorage {
     return bill;
   }
 
-  async updateBill(id: number, updateBill: Partial<InsertBill>): Promise<Bill | undefined> {
-    const [bill] = await db.update(bills).set(updateBill).where(eq(bills.id, id)).returning();
+  async updateBill(
+    id: number,
+    updateBill: Partial<InsertBill>,
+  ): Promise<Bill | undefined> {
+    const [bill] = await db
+      .update(bills)
+      .set(updateBill)
+      .where(eq(bills.id, id))
+      .returning();
     return bill || undefined;
   }
 }

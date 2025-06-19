@@ -1,14 +1,27 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Filter, Download } from "lucide-react";
-import { useCompany } from "@/hooks/useCompany";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Filter, Download } from 'lucide-react'; // Removed Calendar
+import { useCompany } from '@/hooks/useCompany';
 
 interface Account {
   id: number;
@@ -27,9 +40,9 @@ interface JournalEntry {
 }
 
 export default function GeneralLedger() {
-  const [selectedAccount, setSelectedAccount] = useState<string>("");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [selectedAccount, setSelectedAccount] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const { currentCompany } = useCompany();
 
   const { data: accounts, isLoading: accountsLoading } = useQuery<Account[]>({
@@ -37,7 +50,9 @@ export default function GeneralLedger() {
     enabled: !!currentCompany,
   });
 
-  const { data: journalEntries, isLoading: entriesLoading } = useQuery<JournalEntry[]>({
+  const { data: journalEntries, isLoading: entriesLoading } = useQuery<
+    JournalEntry[]
+  >({
     queryKey: ['/api/journal-entries'],
     enabled: !!currentCompany,
   });
@@ -61,8 +76,12 @@ export default function GeneralLedger() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h3 className="text-lg font-medium text-foreground">No Company Selected</h3>
-          <p className="text-muted-foreground">Please select a company to view the general ledger.</p>
+          <h3 className="text-lg font-medium text-foreground">
+            No Company Selected
+          </h3>
+          <p className="text-muted-foreground">
+            Please select a company to view the general ledger.
+          </p>
         </div>
       </div>
     );
@@ -97,7 +116,10 @@ export default function GeneralLedger() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="account">Account</Label>
-              <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+              <Select
+                value={selectedAccount}
+                onValueChange={setSelectedAccount}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="All accounts" />
                 </SelectTrigger>
@@ -111,7 +133,7 @@ export default function GeneralLedger() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -121,7 +143,7 @@ export default function GeneralLedger() {
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="endDate">End Date</Label>
               <Input
@@ -131,11 +153,9 @@ export default function GeneralLedger() {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            
+
             <div className="flex items-end">
-              <Button className="w-full">
-                Apply Filters
-              </Button>
+              <Button className="w-full">Apply Filters</Button>
             </div>
           </div>
         </CardContent>
@@ -150,7 +170,9 @@ export default function GeneralLedger() {
           {entriesLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-sm text-muted-foreground">Loading entries...</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Loading entries...
+              </p>
             </div>
           ) : (
             <Table>
@@ -170,19 +192,27 @@ export default function GeneralLedger() {
                   journalEntries.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell>{formatDate(entry.date)}</TableCell>
-                      <TableCell className="font-mono">{entry.entryNumber}</TableCell>
+                      <TableCell className="font-mono">
+                        {entry.entryNumber}
+                      </TableCell>
                       <TableCell>{entry.description}</TableCell>
                       <TableCell>-</TableCell>
                       <TableCell>
-                        <Badge variant={entry.isPosted ? "default" : "secondary"}>
-                          {entry.isPosted ? "Posted" : "Draft"}
+                        <Badge
+                          variant={entry.isPosted ? 'default' : 'secondary'}
+                        >
+                          {entry.isPosted ? 'Posted' : 'Draft'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(entry.totalAmount)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="text-primary">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-primary"
+                        >
                           View Details
                         </Button>
                       </TableCell>
@@ -190,8 +220,12 @@ export default function GeneralLedger() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No journal entries found. Create your first journal entry to get started.
+                    <TableCell
+                      colSpan={7}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No journal entries found. Create your first journal entry
+                      to get started.
                     </TableCell>
                   </TableRow>
                 )}
@@ -210,7 +244,9 @@ export default function GeneralLedger() {
           {accountsLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-sm text-muted-foreground">Loading account balances...</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Loading account balances...
+              </p>
             </div>
           ) : (
             <Table>
@@ -228,21 +264,31 @@ export default function GeneralLedger() {
                 {accounts && accounts.length > 0 ? (
                   accounts.map((account) => (
                     <TableRow key={account.id}>
-                      <TableCell className="font-mono">{account.code}</TableCell>
-                      <TableCell className="font-medium">{account.name}</TableCell>
+                      <TableCell className="font-mono">
+                        {account.code}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {account.name}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {account.type.charAt(0).toUpperCase() + account.type.slice(1)}
+                          {account.type.charAt(0).toUpperCase() +
+                            account.type.slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">$0.00</TableCell>
                       <TableCell className="text-right">$0.00</TableCell>
-                      <TableCell className="text-right font-medium">$0.00</TableCell>
+                      <TableCell className="text-right font-medium">
+                        $0.00
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       No accounts found. Create accounts first to view balances.
                     </TableCell>
                   </TableRow>

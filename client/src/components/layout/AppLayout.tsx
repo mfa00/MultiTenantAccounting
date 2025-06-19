@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
-import Sidebar from "./Sidebar";
-import TopBar from "./TopBar";
+import { ReactNode } from 'react';
+import Sidebar from './Sidebar';
+import TopBar from './TopBar';
 
 interface AppLayoutProps {
   children: ReactNode;

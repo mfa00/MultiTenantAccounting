@@ -1,22 +1,29 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, Mail, Building, Calendar, Edit, Save, X } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { User, Mail, Building, Calendar, Edit, Save, X } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Profile() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+
   const { user, companies } = useAuth();
   const { toast } = useToast();
 
@@ -30,8 +37,8 @@ export default function Profile() {
   const handleSaveProfile = () => {
     // TODO: Implement profile update API call
     toast({
-      title: "Profile updated",
-      description: "Your profile has been successfully updated.",
+      title: 'Profile updated',
+      description: 'Your profile has been successfully updated.',
     });
     setIsEditingProfile(false);
   };
@@ -64,7 +71,9 @@ export default function Profile() {
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-sm text-muted-foreground">Loading profile...</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Loading profile...
+          </p>
         </div>
       </div>
     );
@@ -91,8 +100,8 @@ export default function Profile() {
                 Profile Information
               </CardTitle>
               {!isEditingProfile && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setIsEditingProfile(true)}
                 >
@@ -161,13 +170,15 @@ export default function Profile() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="text-xl font-semibold">{user.firstName} {user.lastName}</h3>
+                    <h3 className="text-xl font-semibold">
+                      {user.firstName} {user.lastName}
+                    </h3>
                     <p className="text-muted-foreground">{user.username}</p>
                   </div>
                 </div>
-                
+
                 <Separator />
-                
+
                 <div className="grid gap-4">
                   <div className="flex items-center">
                     <Mail className="w-4 h-4 mr-3 text-muted-foreground" />
@@ -193,13 +204,16 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{companies?.length || 0}</div>
+              <div className="text-2xl font-bold text-primary">
+                {companies?.length || 0}
+              </div>
               <p className="text-sm text-muted-foreground">Companies</p>
             </div>
             <Separator />
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {companies?.filter(c => c.role === 'administrator').length || 0}
+                {companies?.filter((c) => c.role === 'administrator').length ||
+                  0}
               </div>
               <p className="text-sm text-muted-foreground">Admin Roles</p>
             </div>
@@ -237,7 +251,9 @@ export default function Profile() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground">{company.code}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {company.code}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -252,4 +268,4 @@ export default function Profile() {
       </Card>
     </div>
   );
-} 
+}

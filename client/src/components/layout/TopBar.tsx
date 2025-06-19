@@ -1,11 +1,16 @@
-import { Plus, Bell, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/hooks/useAuth";
-import { useCompany } from "@/hooks/useCompany";
-import { useLocation } from "wouter";
+import { Plus, Bell, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/hooks/useAuth';
+import { useCompany } from '@/hooks/useCompany';
+import { useLocation } from 'wouter';
 
 export default function TopBar() {
   const { user, logout } = useAuth();
@@ -63,29 +68,38 @@ export default function TopBar() {
             </Badge>
           )}
         </div>
-        
+
         <div className="flex items-center space-x-4">
           {/* Quick Actions */}
-          <Button 
+          <Button
             className="bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={handleNewEntry}
           >
             <Plus className="w-4 h-4 mr-2" />
             New Entry
           </Button>
-          
+
           {/* User Menu */}
           <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-foreground"
+            >
               <Bell className="h-5 w-5" />
             </Button>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center space-x-2 p-0">
+                <Button
+                  variant="ghost"
+                  className="flex items-center space-x-2 p-0"
+                >
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="bg-muted text-muted-foreground">
-                      {user ? getUserInitials(user.firstName, user.lastName) : 'U'}
+                      {user
+                        ? getUserInitials(user.firstName, user.lastName)
+                        : 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium text-foreground">

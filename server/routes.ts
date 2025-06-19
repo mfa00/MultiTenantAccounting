@@ -1,13 +1,22 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import session from "express-session";
-import { storage } from "./storage";
-import { authenticateUser, hashPassword, getUserWithCompanies } from "./auth";
-import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema, insertUserCompanySchema, users as usersTable, userCompanies as userCompaniesTable, companies as companiesTable } from "@shared/schema";
-import { eq } from "drizzle-orm";
-import { db } from "./db";
+import type { Express } from 'express';
+import { createServer, type Server } from 'http';
+import session from 'express-session';
+import { storage } from './storage';
+import { authenticateUser, hashPassword, getUserWithCompanies } from './auth';
+import {
+  insertUserSchema,
+  insertCompanySchema,
+  insertAccountSchema,
+  insertJournalEntrySchema,
+  insertUserCompanySchema,
+  users as usersTable,
+  userCompanies as userCompaniesTable,
+  companies as companiesTable,
+} from '@shared/schema';
+import { eq } from 'drizzle-orm';
+import { db } from './db';
 
-declare module "express-session" {
+declare module 'express-session' {
   interface SessionData {
     userId?: number;
     currentCompanyId?: number;
@@ -16,16 +25,18 @@ declare module "express-session" {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session middleware
-  app.use(session({
-    secret: process.env.SESSION_SECRET || 'accounting-app-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-  }));
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || 'accounting-app-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
+    }),
+  );
 
   // Auth middleware
   const requireAuth = (req: any, res: any, next: any) => {
@@ -39,9 +50,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { username, password } = req.body;
-      
+
       if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required' });
+        return res
+          .status(400)
+          .json({ message: 'Username and password are required' });
       }
 
       const user = await authenticateUser(username, password);
@@ -50,7 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      
+
       const userWithCompanies = await getUserWithCompanies(user.id);
       if (userWithCompanies && userWithCompanies.companies.length > 0) {
         req.session.currentCompanyId = userWithCompanies.companies[0].id;
@@ -66,18 +79,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/register', async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Check if user already exists
-      const existingUser = await storage.getUserByUsername(userData.username) || 
-                          await storage.getUserByEmail(userData.email);
-      
+      const existingUser =
+        (await storage.getUserByUsername(userData.username)) ||
+        (await storage.getUserByEmail(userData.email));
+
       if (existingUser) {
         return res.status(400).json({ message: 'User already exists' });
       }
 
       // Hash password
       const hashedPassword = await hashPassword(userData.password);
-      
+
       // Create user
       const user = await storage.createUser({
         ...userData,
@@ -85,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       req.session.userId = user.id;
-      
+
       res.json({
         user: {
           id: user.id,
@@ -139,7 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const companyData = insertCompanySchema.parse(req.body);
       const company = await storage.createCompany(companyData);
-      
+
       // Assign user as manager of the new company
       await storage.createUserCompany({
         userId: req.session.userId!,
@@ -157,11 +171,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/companies/:id/switch', requireAuth, async (req, res) => {
     try {
       const companyId = parseInt(req.params.id);
-      
+
       // Verify user has access to this company
-      const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+      const userCompany = await storage.getUserCompany(
+        req.session.userId!,
+        companyId,
+      );
       if (!userCompany) {
-        return res.status(403).json({ message: 'Access denied to this company' });
+        return res
+          .status(403)
+          .json({ message: 'Access denied to this company' });
       }
 
       req.session.currentCompanyId = companyId;
@@ -178,8 +197,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.currentCompanyId) {
         return res.status(400).json({ message: 'No company selected' });
       }
-      
-      const accounts = await storage.getAccountsByCompany(req.session.currentCompanyId);
+
+      const accounts = await storage.getAccountsByCompany(
+        req.session.currentCompanyId,
+      );
       res.json(accounts);
     } catch (error) {
       console.error('Get accounts error:', error);
@@ -197,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         companyId: req.session.currentCompanyId,
       });
-      
+
       const account = await storage.createAccount(accountData);
       res.json(account);
     } catch (error) {
@@ -212,8 +233,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.currentCompanyId) {
         return res.status(400).json({ message: 'No company selected' });
       }
-      
-      const entries = await storage.getJournalEntriesByCompany(req.session.currentCompanyId);
+
+      const entries = await storage.getJournalEntriesByCompany(
+        req.session.currentCompanyId,
+      );
       res.json(entries);
     } catch (error) {
       console.error('Get journal entries error:', error);
@@ -232,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         companyId: req.session.currentCompanyId,
         userId: req.session.userId,
       });
-      
+
       const entry = await storage.createJournalEntry(entryData);
       res.json(entry);
     } catch (error) {
@@ -258,8 +281,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.currentCompanyId) {
         return res.status(400).json({ message: 'No company selected' });
       }
-      
-      const customers = await storage.getCustomersByCompany(req.session.currentCompanyId);
+
+      const customers = await storage.getCustomersByCompany(
+        req.session.currentCompanyId,
+      );
       res.json(customers);
     } catch (error) {
       console.error('Get customers error:', error);
@@ -277,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         companyId: req.session.currentCompanyId,
       };
-      
+
       const customer = await storage.createCustomer(customerData);
       res.json(customer);
     } catch (error) {
@@ -292,8 +317,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.currentCompanyId) {
         return res.status(400).json({ message: 'No company selected' });
       }
-      
-      const invoices = await storage.getInvoicesByCompany(req.session.currentCompanyId);
+
+      const invoices = await storage.getInvoicesByCompany(
+        req.session.currentCompanyId,
+      );
       res.json(invoices);
     } catch (error) {
       console.error('Get invoices error:', error);
@@ -311,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         companyId: req.session.currentCompanyId,
       };
-      
+
       const invoice = await storage.createInvoice(invoiceData);
       res.json(invoice);
     } catch (error) {
@@ -355,21 +382,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recent transactions
-  app.get('/api/dashboard/recent-transactions', requireAuth, async (req, res) => {
-    try {
-      if (!req.session.currentCompanyId) {
-        return res.status(400).json({ message: 'No company selected' });
+  app.get(
+    '/api/dashboard/recent-transactions',
+    requireAuth,
+    async (req, res) => {
+      try {
+        if (!req.session.currentCompanyId) {
+          return res.status(400).json({ message: 'No company selected' });
+        }
+
+        const entries = await storage.getJournalEntriesByCompany(
+          req.session.currentCompanyId,
+        );
+        const recentEntries = entries.slice(0, 10);
+
+        res.json(recentEntries);
+      } catch (error) {
+        console.error('Get recent transactions error:', error);
+        res.status(500).json({ message: 'Internal server error' });
       }
-
-      const entries = await storage.getJournalEntriesByCompany(req.session.currentCompanyId);
-      const recentEntries = entries.slice(0, 10);
-
-      res.json(recentEntries);
-    } catch (error) {
-      console.error('Get recent transactions error:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    },
+  );
 
   // Users management endpoints (add after the existing routes)
   app.get('/api/users', requireAuth, async (req, res) => {
@@ -380,20 +413,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let users;
-      
+
       // If global administrator, show all users
       if (currentUser.globalRole === 'global_administrator') {
         // Get all users in the system
-        users = await db.select({
-          id: usersTable.id,
-          username: usersTable.username,
-          email: usersTable.email,
-          firstName: usersTable.firstName,
-          lastName: usersTable.lastName,
-          globalRole: usersTable.globalRole,
-          isActive: usersTable.isActive,
-          createdAt: usersTable.createdAt,
-        }).from(usersTable);
+        users = await db
+          .select({
+            id: usersTable.id,
+            username: usersTable.username,
+            email: usersTable.email,
+            firstName: usersTable.firstName,
+            lastName: usersTable.lastName,
+            globalRole: usersTable.globalRole,
+            isActive: usersTable.isActive,
+            createdAt: usersTable.createdAt,
+          })
+          .from(usersTable);
       } else {
         // For non-global admins, show users in current company only
         if (!req.session.currentCompanyId) {
@@ -412,9 +447,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: usersTable.createdAt,
           })
           .from(usersTable)
-          .innerJoin(userCompaniesTable, eq(usersTable.id, userCompaniesTable.userId))
-          .where(eq(userCompaniesTable.companyId, req.session.currentCompanyId));
-        
+          .innerJoin(
+            userCompaniesTable,
+            eq(usersTable.id, userCompaniesTable.userId),
+          )
+          .where(
+            eq(userCompaniesTable.companyId, req.session.currentCompanyId),
+          );
+
         users = companyUsers;
       }
 
@@ -428,18 +468,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/users', requireAuth, async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Check if user already exists
-      const existingUser = await storage.getUserByUsername(userData.username) || 
-                          await storage.getUserByEmail(userData.email);
-      
+      const existingUser =
+        (await storage.getUserByUsername(userData.username)) ||
+        (await storage.getUserByEmail(userData.email));
+
       if (existingUser) {
         return res.status(400).json({ message: 'User already exists' });
       }
 
       // Hash password
       const hashedPassword = await hashPassword(userData.password);
-      
+
       // Create user
       const user = await storage.createUser({
         ...userData,
@@ -492,11 +533,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: companiesTable.id,
               name: companiesTable.name,
               code: companiesTable.code,
-            }
+            },
           })
           .from(userCompaniesTable)
           .innerJoin(usersTable, eq(userCompaniesTable.userId, usersTable.id))
-          .innerJoin(companiesTable, eq(userCompaniesTable.companyId, companiesTable.id));
+          .innerJoin(
+            companiesTable,
+            eq(userCompaniesTable.companyId, companiesTable.id),
+          );
       } else {
         // For non-global admins, show assignments for current company only
         if (!req.session.currentCompanyId) {
@@ -521,12 +565,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: companiesTable.id,
               name: companiesTable.name,
               code: companiesTable.code,
-            }
+            },
           })
           .from(userCompaniesTable)
           .innerJoin(usersTable, eq(userCompaniesTable.userId, usersTable.id))
-          .innerJoin(companiesTable, eq(userCompaniesTable.companyId, companiesTable.id))
-          .where(eq(userCompaniesTable.companyId, req.session.currentCompanyId));
+          .innerJoin(
+            companiesTable,
+            eq(userCompaniesTable.companyId, companiesTable.id),
+          )
+          .where(
+            eq(userCompaniesTable.companyId, req.session.currentCompanyId),
+          );
       }
 
       res.json(userCompanyAssignments);
@@ -551,16 +600,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/auth/profile', requireAuth, async (req, res) => {
     try {
       const { firstName, lastName, email } = req.body;
-      
+
       if (!firstName || !lastName || !email) {
         return res.status(400).json({ message: 'All fields are required' });
       }
 
       // TODO: Implement actual profile update in storage
       // For now, just return success
-      res.json({ 
+      res.json({
         message: 'Profile updated successfully',
-        user: { firstName, lastName, email }
+        user: { firstName, lastName, email },
       });
     } catch (error) {
       console.error('Update profile error:', error);
@@ -571,9 +620,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/auth/change-password', requireAuth, async (req, res) => {
     try {
       const { currentPassword, newPassword } = req.body;
-      
+
       if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: 'Current and new password are required' });
+        return res
+          .status(400)
+          .json({ message: 'Current and new password are required' });
       }
 
       // TODO: Implement actual password change in storage

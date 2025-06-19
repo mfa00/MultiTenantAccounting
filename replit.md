@@ -7,6 +7,7 @@ This is a full-stack accounting application built with React on the frontend and
 ## System Architecture
 
 ### Frontend Architecture
+
 - **Framework**: React with TypeScript
 - **Routing**: Wouter for client-side routing
 - **State Management**: TanStack Query (React Query) for server state management
@@ -16,6 +17,7 @@ This is a full-stack accounting application built with React on the frontend and
 - **Build Tool**: Vite for development and production builds
 
 ### Backend Architecture
+
 - **Framework**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
 - **Database Provider**: Neon Database (serverless PostgreSQL)
@@ -24,6 +26,7 @@ This is a full-stack accounting application built with React on the frontend and
 - **API Design**: RESTful API endpoints with JSON responses
 
 ### Project Structure
+
 - `client/` - React frontend application
 - `server/` - Express.js backend application
 - `shared/` - Shared TypeScript schemas and types
@@ -32,6 +35,7 @@ This is a full-stack accounting application built with React on the frontend and
 ## Key Components
 
 ### Authentication System
+
 - Session-based authentication using express-session
 - Password hashing with bcrypt
 - User registration and login functionality
@@ -39,7 +43,9 @@ This is a full-stack accounting application built with React on the frontend and
 - Role-based access control (administrator, manager, accountant, assistant)
 
 ### Database Schema
+
 The application uses a comprehensive accounting database schema including:
+
 - **Users**: User accounts with authentication
 - **Companies**: Multi-company support with company-specific data
 - **User-Company Relationships**: Role-based access per company
@@ -49,6 +55,7 @@ The application uses a comprehensive accounting database schema including:
 - **Invoices & Bills**: Transaction documents
 
 ### Frontend Pages
+
 - **Dashboard**: Overview with key metrics and recent transactions
 - **Chart of Accounts**: Account management with hierarchical structure
 - **General Ledger**: Transaction history and account balances
@@ -58,6 +65,7 @@ The application uses a comprehensive accounting database schema including:
 - **User Management**: Multi-company user and role administration
 
 ### UI Components
+
 - Comprehensive component library using Shadcn/ui
 - Responsive design with mobile support
 - Dark/light theme support via CSS variables
@@ -68,6 +76,7 @@ The application uses a comprehensive accounting database schema including:
 ## Data Flow
 
 ### Authentication Flow
+
 1. User submits login credentials
 2. Server validates credentials against database
 3. Session is created and stored in PostgreSQL
@@ -75,6 +84,7 @@ The application uses a comprehensive accounting database schema including:
 5. Frontend stores authentication state in React Query
 
 ### Transaction Flow
+
 1. User creates journal entry through form
 2. Frontend validates data using Zod schemas
 3. API request sent to backend with transaction data
@@ -82,6 +92,7 @@ The application uses a comprehensive accounting database schema including:
 5. Frontend updates local cache and shows success feedback
 
 ### Multi-Company Flow
+
 1. User selects company from dropdown
 2. Company switch request sent to backend
 3. Session updated with current company ID
@@ -91,6 +102,7 @@ The application uses a comprehensive accounting database schema including:
 ## External Dependencies
 
 ### Backend Dependencies
+
 - **@neondatabase/serverless**: Neon database connection
 - **drizzle-orm**: Type-safe ORM for PostgreSQL
 - **bcrypt**: Password hashing
@@ -98,8 +110,9 @@ The application uses a comprehensive accounting database schema including:
 - **connect-pg-simple**: PostgreSQL session store
 
 ### Frontend Dependencies
+
 - **@tanstack/react-query**: Server state management
-- **@radix-ui/***: Accessible UI primitives
+- **@radix-ui/\***: Accessible UI primitives
 - **react-hook-form**: Form handling
 - **@hookform/resolvers**: Form validation
 - **zod**: Schema validation
@@ -108,6 +121,7 @@ The application uses a comprehensive accounting database schema including:
 - **tailwindcss**: Utility-first CSS framework
 
 ### Development Dependencies
+
 - **tsx**: TypeScript execution for development
 - **esbuild**: Fast bundler for production
 - **vite**: Development server and build tool
@@ -116,18 +130,21 @@ The application uses a comprehensive accounting database schema including:
 ## Deployment Strategy
 
 ### Development Environment
+
 - Uses Vite development server with HMR
 - Express server runs on port 5000
 - PostgreSQL database provided by Replit
 - Session-based development workflow
 
 ### Production Build
+
 - Frontend built using Vite to static assets
 - Backend bundled using esbuild for Node.js
 - Static assets served from Express server
 - Database migrations applied using Drizzle Kit
 
 ### Environment Configuration
+
 - Database connection via DATABASE_URL environment variable
 - Session secret configurable via SESSION_SECRET
 - Production/development mode detection
@@ -140,21 +157,25 @@ The application uses a comprehensive accounting database schema including:
 The application implements four distinct access levels with hierarchical permissions:
 
 #### 1. Assistant Accountant
+
 - **Purpose**: Data entry and basic operations
 - **Permissions**: View dashboard, create customers/vendors, basic journal entries, view invoices/bills, basic reporting
 - **Restrictions**: Cannot modify chart of accounts, delete records, or access settings
 
-#### 2. Accountant  
+#### 2. Accountant
+
 - **Purpose**: Full accounting operations
 - **Permissions**: All assistant permissions plus account management, journal posting/unposting, invoice sending, bill payments, report exports
 - **Restrictions**: Cannot manage users, companies, or system settings
 
 #### 3. Manager
+
 - **Purpose**: Company management and full accounting
 - **Permissions**: All accountant permissions plus user management within company, company settings, custom reports, account/record deletion
 - **Restrictions**: Cannot create new companies or manage system-wide users
 
 #### 4. Administrator
+
 - **Purpose**: Full system access
 - **Permissions**: All manager permissions plus company creation, system-wide user management, complete access across all companies
 - **Restrictions**: None

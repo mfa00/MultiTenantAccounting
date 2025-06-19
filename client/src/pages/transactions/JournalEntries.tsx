@@ -1,21 +1,40 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Save, X } from "lucide-react";
-import { useCompany } from "@/hooks/useCompany";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Edit, Trash2, X } from 'lucide-react'; // Removed Save
+import { useCompany } from '@/hooks/useCompany';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 interface Account {
   id: number;
@@ -35,34 +54,50 @@ interface JournalEntry {
   createdAt: string;
 }
 
-interface JournalEntryLine {
-  id: number;
-  accountId: number;
-  description: string | null;
-  debitAmount: string;
-  creditAmount: string;
-}
+// interface JournalEntryLine { // Unused
+//   id: number;
+//   accountId: number;
+//   description: string | null;
+//   debitAmount: string;
+//   creditAmount: string;
+// }
 
 const journalEntryLineSchema = z.object({
-  accountId: z.number().min(1, "Account is required"),
+  accountId: z.number().min(1, 'Account is required'),
   description: z.string().optional(),
-  debitAmount: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Must be a valid positive number"),
-  creditAmount: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Must be a valid positive number"),
+  debitAmount: z
+    .string()
+    .refine(
+      (val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0,
+      'Must be a valid positive number',
+    ),
+  creditAmount: z
+    .string()
+    .refine(
+      (val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0,
+      'Must be a valid positive number',
+    ),
 });
 
 const journalEntrySchema = z.object({
-  entryNumber: z.string().min(1, "Entry number is required"),
-  date: z.string().min(1, "Date is required"),
-  description: z.string().min(1, "Description is required"),
+  entryNumber: z.string().min(1, 'Entry number is required'),
+  date: z.string().min(1, 'Date is required'),
+  description: z.string().min(1, 'Description is required'),
   reference: z.string().optional(),
-  lines: z.array(journalEntryLineSchema).min(2, "At least 2 lines are required").refine(
-    (lines) => {
-      const totalDebits = lines.reduce((sum, line) => sum + parseFloat(line.debitAmount || '0'), 0);
-      const totalCredits = lines.reduce((sum, line) => sum + parseFloat(line.creditAmount || '0'), 0);
+  lines: z
+    .array(journalEntryLineSchema)
+    .min(2, 'At least 2 lines are required')
+    .refine((lines) => {
+      const totalDebits = lines.reduce(
+        (sum, line) => sum + parseFloat(line.debitAmount || '0'),
+        0,
+      );
+      const totalCredits = lines.reduce(
+        (sum, line) => sum + parseFloat(line.creditAmount || '0'),
+        0,
+      );
       return Math.abs(totalDebits - totalCredits) < 0.01;
-    },
-    "Total debits must equal total credits"
-  ),
+    }, 'Total debits must equal total credits'),
 });
 
 type JournalEntryForm = z.infer<typeof journalEntrySchema>;
@@ -73,12 +108,17 @@ export default function JournalEntries() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: journalEntries, isLoading: entriesLoading } = useQuery<JournalEntry[]>({
+  const { data: journalEntries, isLoading: entriesLoading } = useQuery<
+    JournalEntry[]
+  >({
     queryKey: ['/api/journal-entries'],
     enabled: !!currentCompany,
   });
 
-  const { data: accounts, isLoading: accountsLoading } = useQuery<Account[]>({
+  const { data: accounts /* isLoading: accountsLoading */ } = useQuery<
+    Account[]
+  >({
+    // accountsLoading removed
     queryKey: ['/api/accounts'],
     enabled: !!currentCompany,
   });
@@ -86,26 +126,39 @@ export default function JournalEntries() {
   const form = useForm<JournalEntryForm>({
     resolver: zodResolver(journalEntrySchema),
     defaultValues: {
-      entryNumber: "",
+      entryNumber: '',
       date: new Date().toISOString().split('T')[0],
-      description: "",
-      reference: "",
+      description: '',
+      reference: '',
       lines: [
-        { accountId: 0, description: "", debitAmount: "0.00", creditAmount: "0.00" },
-        { accountId: 0, description: "", debitAmount: "0.00", creditAmount: "0.00" },
+        {
+          accountId: 0,
+          description: '',
+          debitAmount: '0.00',
+          creditAmount: '0.00',
+        },
+        {
+          accountId: 0,
+          description: '',
+          debitAmount: '0.00',
+          creditAmount: '0.00',
+        },
       ],
     },
   });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: "lines",
+    name: 'lines',
   });
 
   const createEntryMutation = useMutation({
     mutationFn: async (data: JournalEntryForm) => {
-      const totalAmount = data.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount || '0'), 0);
-      
+      const totalAmount = data.lines.reduce(
+        (sum, line) => sum + parseFloat(line.debitAmount || '0'),
+        0,
+      );
+
       const entryResponse = await apiRequest('POST', '/api/journal-entries', {
         entryNumber: data.entryNumber,
         date: new Date(data.date).toISOString(),
@@ -113,12 +166,16 @@ export default function JournalEntries() {
         reference: data.reference || null,
         totalAmount: totalAmount.toString(),
       });
-      
+
       const entry = await entryResponse.json();
-      
+
       // Create journal entry lines
       for (const line of data.lines) {
-        if (line.accountId && (parseFloat(line.debitAmount) > 0 || parseFloat(line.creditAmount) > 0)) {
+        if (
+          line.accountId &&
+          (parseFloat(line.debitAmount) > 0 ||
+            parseFloat(line.creditAmount) > 0)
+        ) {
           await apiRequest('POST', '/api/journal-entry-lines', {
             journalEntryId: entry.id,
             accountId: line.accountId,
@@ -128,7 +185,7 @@ export default function JournalEntries() {
           });
         }
       }
-      
+
       return entry;
     },
     onSuccess: () => {
@@ -136,15 +193,15 @@ export default function JournalEntries() {
       setIsDialogOpen(false);
       form.reset();
       toast({
-        title: "Journal entry created",
-        description: "The journal entry has been successfully created.",
+        title: 'Journal entry created',
+        description: 'The journal entry has been successfully created.',
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create journal entry",
-        variant: "destructive",
+        title: 'Error',
+        description: error.message || 'Failed to create journal entry',
+        variant: 'destructive',
       });
     },
   });
@@ -154,13 +211,24 @@ export default function JournalEntries() {
   };
 
   const addLine = () => {
-    append({ accountId: 0, description: "", debitAmount: "0.00", creditAmount: "0.00" });
+    append({
+      accountId: 0,
+      description: '',
+      debitAmount: '0.00',
+      creditAmount: '0.00',
+    });
   };
 
   const calculateTotals = () => {
-    const lines = form.watch("lines");
-    const totalDebits = lines.reduce((sum, line) => sum + parseFloat(line.debitAmount || '0'), 0);
-    const totalCredits = lines.reduce((sum, line) => sum + parseFloat(line.creditAmount || '0'), 0);
+    const lines = form.watch('lines');
+    const totalDebits = lines.reduce(
+      (sum, line) => sum + parseFloat(line.debitAmount || '0'),
+      0,
+    );
+    const totalCredits = lines.reduce(
+      (sum, line) => sum + parseFloat(line.creditAmount || '0'),
+      0,
+    );
     return { totalDebits, totalCredits };
   };
 
@@ -183,8 +251,12 @@ export default function JournalEntries() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h3 className="text-lg font-medium text-foreground">No Company Selected</h3>
-          <p className="text-muted-foreground">Please select a company to manage journal entries.</p>
+          <h3 className="text-lg font-medium text-foreground">
+            No Company Selected
+          </h3>
+          <p className="text-muted-foreground">
+            Please select a company to manage journal entries.
+          </p>
         </div>
       </div>
     );
@@ -197,7 +269,9 @@ export default function JournalEntries() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Journal Entries</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Journal Entries
+          </h1>
           <p className="text-muted-foreground">
             Create and manage manual accounting entries
           </p>
@@ -219,7 +293,7 @@ export default function JournalEntries() {
                   <Label htmlFor="entryNumber">Entry Number</Label>
                   <Input
                     id="entryNumber"
-                    {...form.register("entryNumber")}
+                    {...form.register('entryNumber')}
                     placeholder="JE-001"
                   />
                   {form.formState.errors.entryNumber && (
@@ -230,11 +304,7 @@ export default function JournalEntries() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    {...form.register("date")}
-                  />
+                  <Input id="date" type="date" {...form.register('date')} />
                   {form.formState.errors.date && (
                     <p className="text-sm text-destructive">
                       {form.formState.errors.date.message}
@@ -247,7 +317,7 @@ export default function JournalEntries() {
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  {...form.register("description")}
+                  {...form.register('description')}
                   placeholder="Enter journal entry description"
                   rows={2}
                 />
@@ -262,7 +332,7 @@ export default function JournalEntries() {
                 <Label htmlFor="reference">Reference (Optional)</Label>
                 <Input
                   id="reference"
-                  {...form.register("reference")}
+                  {...form.register('reference')}
                   placeholder="Reference number or document"
                 />
               </div>
@@ -271,7 +341,12 @@ export default function JournalEntries() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label>Journal Entry Lines</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addLine}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Line
                   </Button>
@@ -293,15 +368,25 @@ export default function JournalEntries() {
                         <TableRow key={field.id}>
                           <TableCell className="w-64">
                             <Select
-                              value={form.watch(`lines.${index}.accountId`).toString()}
-                              onValueChange={(value) => form.setValue(`lines.${index}.accountId`, parseInt(value))}
+                              value={form
+                                .watch(`lines.${index}.accountId`)
+                                .toString()}
+                              onValueChange={(value) =>
+                                form.setValue(
+                                  `lines.${index}.accountId`,
+                                  parseInt(value),
+                                )
+                              }
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select account" />
                               </SelectTrigger>
                               <SelectContent>
                                 {accounts?.map((account) => (
-                                  <SelectItem key={account.id} value={account.id.toString()}>
+                                  <SelectItem
+                                    key={account.id}
+                                    value={account.id.toString()}
+                                  >
                                     {account.code} - {account.name}
                                   </SelectItem>
                                 ))}
@@ -355,17 +440,29 @@ export default function JournalEntries() {
                 {/* Totals */}
                 <div className="flex justify-end space-x-8 pt-4 border-t">
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total Debits</p>
-                    <p className="font-medium">{formatCurrency(totalDebits.toString())}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Total Debits
+                    </p>
+                    <p className="font-medium">
+                      {formatCurrency(totalDebits.toString())}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total Credits</p>
-                    <p className="font-medium">{formatCurrency(totalCredits.toString())}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Total Credits
+                    </p>
+                    <p className="font-medium">
+                      {formatCurrency(totalCredits.toString())}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Difference</p>
-                    <p className={`font-medium ${isBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(Math.abs(totalDebits - totalCredits).toString())}
+                    <p
+                      className={`font-medium ${isBalanced ? 'text-green-600' : 'text-red-600'}`}
+                    >
+                      {formatCurrency(
+                        Math.abs(totalDebits - totalCredits).toString(),
+                      )}
                     </p>
                   </div>
                 </div>
@@ -391,8 +488,13 @@ export default function JournalEntries() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createEntryMutation.isPending || !isBalanced}>
-                  {createEntryMutation.isPending ? "Creating..." : "Create Entry"}
+                <Button
+                  type="submit"
+                  disabled={createEntryMutation.isPending || !isBalanced}
+                >
+                  {createEntryMutation.isPending
+                    ? 'Creating...'
+                    : 'Create Entry'}
                 </Button>
               </div>
             </form>
@@ -408,7 +510,9 @@ export default function JournalEntries() {
           {entriesLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-sm text-muted-foreground">Loading journal entries...</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Loading journal entries...
+              </p>
             </div>
           ) : (
             <Table>
@@ -428,12 +532,16 @@ export default function JournalEntries() {
                   journalEntries.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell>{formatDate(entry.date)}</TableCell>
-                      <TableCell className="font-mono">{entry.entryNumber}</TableCell>
+                      <TableCell className="font-mono">
+                        {entry.entryNumber}
+                      </TableCell>
                       <TableCell>{entry.description}</TableCell>
                       <TableCell>{entry.reference || '-'}</TableCell>
                       <TableCell>
-                        <Badge variant={entry.isPosted ? "default" : "secondary"}>
-                          {entry.isPosted ? "Posted" : "Draft"}
+                        <Badge
+                          variant={entry.isPosted ? 'default' : 'secondary'}
+                        >
+                          {entry.isPosted ? 'Posted' : 'Draft'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium">
@@ -445,7 +553,11 @@ export default function JournalEntries() {
                             <Edit className="w-4 h-4" />
                           </Button>
                           {!entry.isPosted && (
-                            <Button variant="ghost" size="sm" className="text-destructive">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                            >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
@@ -455,8 +567,12 @@ export default function JournalEntries() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No journal entries found. Create your first entry to get started.
+                    <TableCell
+                      colSpan={7}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No journal entries found. Create your first entry to get
+                      started.
                     </TableCell>
                   </TableRow>
                 )}

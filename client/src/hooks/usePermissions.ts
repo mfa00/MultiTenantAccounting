@@ -1,6 +1,12 @@
 import { useAuth } from './useAuth';
 import { useCompany } from './useCompany';
-import { hasPermission, type Role, PERMISSIONS, getRolePermissions, canAssignRole } from '@shared/permissions';
+import {
+  hasPermission,
+  type Role,
+  PERMISSIONS,
+  getRolePermissions,
+  canAssignRole,
+} from '@shared/permissions';
 
 export function usePermissions() {
   const { companies } = useAuth();
@@ -9,9 +15,9 @@ export function usePermissions() {
   // Get current user's role for the selected company
   const getCurrentRole = (): Role | null => {
     if (!currentCompany || !companies) return null;
-    
-    const userCompany = companies.find(uc => uc.id === currentCompany.id);
-    return userCompany?.role as Role || null;
+
+    const userCompany = companies.find((uc) => uc.id === currentCompany.id);
+    return (userCompany?.role as Role) || null;
   };
 
   const currentRole = getCurrentRole();
@@ -24,12 +30,12 @@ export function usePermissions() {
 
   // Check if user can perform multiple permissions (OR logic)
   const canAny = (permissions: (keyof typeof PERMISSIONS)[]): boolean => {
-    return permissions.some(permission => can(permission));
+    return permissions.some((permission) => can(permission));
   };
 
   // Check if user can perform all permissions (AND logic)
   const canAll = (permissions: (keyof typeof PERMISSIONS)[]): boolean => {
-    return permissions.every(permission => can(permission));
+    return permissions.every((permission) => can(permission));
   };
 
   // Check if user can assign a specific role

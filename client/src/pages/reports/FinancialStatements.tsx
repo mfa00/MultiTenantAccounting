@@ -1,15 +1,28 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
-import { FileText, Download, Printer, Calendar } from "lucide-react";
-import { useCompany } from "@/hooks/useCompany";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Unused
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+// import { Separator } from '@/components/ui/separator'; // Unused
+import { Download, Printer, Calendar } from 'lucide-react'; // Removed FileText
+import { useCompany } from '@/hooks/useCompany';
 
 interface Account {
   id: number;
@@ -19,16 +32,20 @@ interface Account {
   subType: string | null;
 }
 
-interface FinancialData {
-  account: string;
-  amount: number;
-  type: string;
-}
+// interface FinancialData { // Unused
+//   account: string;
+//   amount: number;
+//   type: string;
+// }
 
 export default function FinancialStatements() {
-  const [reportType, setReportType] = useState("profit-loss");
-  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportType, setReportType] = useState('profit-loss');
+  const [startDate, setStartDate] = useState(
+    new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+  );
+  const [endDate, setEndDate] = useState(
+    new Date().toISOString().split('T')[0],
+  );
   const { currentCompany } = useCompany();
 
   const { data: accounts, isLoading: accountsLoading } = useQuery<Account[]>({
@@ -53,64 +70,98 @@ export default function FinancialStatements() {
 
   // Mock data for demonstration - in production, this would come from actual transaction data
   const generateMockData = (type: string) => {
-    if (type === "profit-loss") {
+    if (type === 'profit-loss') {
       return [
-        { category: "Revenue", accounts: [
-          { name: "Sales Revenue", amount: 125430 },
-          { name: "Service Revenue", amount: 35200 },
-          { name: "Other Revenue", amount: 2800 },
-        ]},
-        { category: "Cost of Goods Sold", accounts: [
-          { name: "Cost of Materials", amount: 45600 },
-          { name: "Direct Labor", amount: 28300 },
-        ]},
-        { category: "Operating Expenses", accounts: [
-          { name: "Rent Expense", amount: 8000 },
-          { name: "Utilities Expense", amount: 1200 },
-          { name: "Office Supplies", amount: 850 },
-          { name: "Professional Services", amount: 3200 },
-          { name: "Insurance Expense", amount: 1500 },
-        ]},
+        {
+          category: 'Revenue',
+          accounts: [
+            { name: 'Sales Revenue', amount: 125430 },
+            { name: 'Service Revenue', amount: 35200 },
+            { name: 'Other Revenue', amount: 2800 },
+          ],
+        },
+        {
+          category: 'Cost of Goods Sold',
+          accounts: [
+            { name: 'Cost of Materials', amount: 45600 },
+            { name: 'Direct Labor', amount: 28300 },
+          ],
+        },
+        {
+          category: 'Operating Expenses',
+          accounts: [
+            { name: 'Rent Expense', amount: 8000 },
+            { name: 'Utilities Expense', amount: 1200 },
+            { name: 'Office Supplies', amount: 850 },
+            { name: 'Professional Services', amount: 3200 },
+            { name: 'Insurance Expense', amount: 1500 },
+          ],
+        },
       ];
-    } else if (type === "balance-sheet") {
+    } else if (type === 'balance-sheet') {
       return [
-        { category: "Assets", subcategories: [
-          { name: "Current Assets", accounts: [
-            { name: "Cash and Cash Equivalents", amount: 45120 },
-            { name: "Accounts Receivable", amount: 28940 },
-            { name: "Inventory", amount: 15600 },
-            { name: "Prepaid Expenses", amount: 3200 },
-          ]},
-          { name: "Fixed Assets", accounts: [
-            { name: "Equipment", amount: 85000 },
-            { name: "Accumulated Depreciation - Equipment", amount: -12000 },
-            { name: "Furniture and Fixtures", amount: 25000 },
-            { name: "Accumulated Depreciation - Furniture", amount: -5000 },
-          ]},
-        ]},
-        { category: "Liabilities", subcategories: [
-          { name: "Current Liabilities", accounts: [
-            { name: "Accounts Payable", amount: 18500 },
-            { name: "Accrued Expenses", amount: 4200 },
-            { name: "Short-term Loans", amount: 15000 },
-          ]},
-          { name: "Long-term Liabilities", accounts: [
-            { name: "Long-term Debt", amount: 75000 },
-          ]},
-        ]},
-        { category: "Equity", subcategories: [
-          { name: "Owner's Equity", accounts: [
-            { name: "Capital", amount: 50000 },
-            { name: "Retained Earnings", amount: 42160 },
-          ]},
-        ]},
+        {
+          category: 'Assets',
+          subcategories: [
+            {
+              name: 'Current Assets',
+              accounts: [
+                { name: 'Cash and Cash Equivalents', amount: 45120 },
+                { name: 'Accounts Receivable', amount: 28940 },
+                { name: 'Inventory', amount: 15600 },
+                { name: 'Prepaid Expenses', amount: 3200 },
+              ],
+            },
+            {
+              name: 'Fixed Assets',
+              accounts: [
+                { name: 'Equipment', amount: 85000 },
+                {
+                  name: 'Accumulated Depreciation - Equipment',
+                  amount: -12000,
+                },
+                { name: 'Furniture and Fixtures', amount: 25000 },
+                { name: 'Accumulated Depreciation - Furniture', amount: -5000 },
+              ],
+            },
+          ],
+        },
+        {
+          category: 'Liabilities',
+          subcategories: [
+            {
+              name: 'Current Liabilities',
+              accounts: [
+                { name: 'Accounts Payable', amount: 18500 },
+                { name: 'Accrued Expenses', amount: 4200 },
+                { name: 'Short-term Loans', amount: 15000 },
+              ],
+            },
+            {
+              name: 'Long-term Liabilities',
+              accounts: [{ name: 'Long-term Debt', amount: 75000 }],
+            },
+          ],
+        },
+        {
+          category: 'Equity',
+          subcategories: [
+            {
+              name: "Owner's Equity",
+              accounts: [
+                { name: 'Capital', amount: 50000 },
+                { name: 'Retained Earnings', amount: 42160 },
+              ],
+            },
+          ],
+        },
       ];
     }
     return [];
   };
 
   const renderProfitLoss = () => {
-    const data = generateMockData("profit-loss");
+    const data = generateMockData('profit-loss');
     let totalRevenue = 0;
     let totalCOGS = 0;
     let totalExpenses = 0;
@@ -132,9 +183,12 @@ export default function FinancialStatements() {
               <Table>
                 <TableBody>
                   {section.accounts.map((account, accountIndex) => {
-                    if (section.category === "Revenue") totalRevenue += account.amount;
-                    else if (section.category === "Cost of Goods Sold") totalCOGS += account.amount;
-                    else if (section.category === "Operating Expenses") totalExpenses += account.amount;
+                    if (section.category === 'Revenue')
+                      totalRevenue += account.amount;
+                    else if (section.category === 'Cost of Goods Sold')
+                      totalCOGS += account.amount;
+                    else if (section.category === 'Operating Expenses')
+                      totalExpenses += account.amount;
 
                     return (
                       <TableRow key={accountIndex}>
@@ -147,8 +201,8 @@ export default function FinancialStatements() {
                   })}
                 </TableBody>
               </Table>
-              
-              {section.category === "Revenue" && (
+
+              {section.category === 'Revenue' && (
                 <div className="mt-2 pt-2 border-t">
                   <div className="flex justify-between font-semibold">
                     <span>Total Revenue</span>
@@ -156,8 +210,8 @@ export default function FinancialStatements() {
                   </div>
                 </div>
               )}
-              
-              {section.category === "Cost of Goods Sold" && (
+
+              {section.category === 'Cost of Goods Sold' && (
                 <div className="mt-2 pt-2 border-t">
                   <div className="flex justify-between font-semibold">
                     <span>Total Cost of Goods Sold</span>
@@ -169,8 +223,8 @@ export default function FinancialStatements() {
                   </div>
                 </div>
               )}
-              
-              {section.category === "Operating Expenses" && (
+
+              {section.category === 'Operating Expenses' && (
                 <div className="mt-2 pt-2 border-t">
                   <div className="flex justify-between font-semibold">
                     <span>Total Operating Expenses</span>
@@ -178,7 +232,13 @@ export default function FinancialStatements() {
                   </div>
                   <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t">
                     <span>Net Income</span>
-                    <span className={totalRevenue - totalCOGS - totalExpenses >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    <span
+                      className={
+                        totalRevenue - totalCOGS - totalExpenses >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }
+                    >
                       {formatCurrency(totalRevenue - totalCOGS - totalExpenses)}
                     </span>
                   </div>
@@ -192,7 +252,7 @@ export default function FinancialStatements() {
   };
 
   const renderBalanceSheet = () => {
-    const data = generateMockData("balance-sheet");
+    const data = generateMockData('balance-sheet');
     let totalAssets = 0;
     let totalLiabilities = 0;
     let totalEquity = 0;
@@ -202,31 +262,39 @@ export default function FinancialStatements() {
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold">{currentCompany?.name}</h2>
           <h3 className="text-xl font-semibold">Balance Sheet</h3>
-          <p className="text-muted-foreground">
-            As of {formatDate(endDate)}
-          </p>
+          <p className="text-muted-foreground">As of {formatDate(endDate)}</p>
         </div>
 
         <div className="space-y-6">
           {data.map((section, index) => (
             <div key={index}>
               <h4 className="font-semibold text-lg mb-3">{section.category}</h4>
-              
+
               {section.subcategories?.map((subcategory, subIndex) => {
-                const subcategoryTotal = subcategory.accounts.reduce((sum, account) => sum + account.amount, 0);
-                
-                if (section.category === "Assets") totalAssets += subcategoryTotal;
-                else if (section.category === "Liabilities") totalLiabilities += subcategoryTotal;
-                else if (section.category === "Equity") totalEquity += subcategoryTotal;
+                const subcategoryTotal = subcategory.accounts.reduce(
+                  (sum, account) => sum + account.amount,
+                  0,
+                );
+
+                if (section.category === 'Assets')
+                  totalAssets += subcategoryTotal;
+                else if (section.category === 'Liabilities')
+                  totalLiabilities += subcategoryTotal;
+                else if (section.category === 'Equity')
+                  totalEquity += subcategoryTotal;
 
                 return (
                   <div key={subIndex} className="mb-4">
-                    <h5 className="font-medium text-base mb-2 pl-2">{subcategory.name}</h5>
+                    <h5 className="font-medium text-base mb-2 pl-2">
+                      {subcategory.name}
+                    </h5>
                     <Table>
                       <TableBody>
                         {subcategory.accounts.map((account, accountIndex) => (
                           <TableRow key={accountIndex}>
-                            <TableCell className="pl-6">{account.name}</TableCell>
+                            <TableCell className="pl-6">
+                              {account.name}
+                            </TableCell>
                             <TableCell className="text-right font-medium">
                               {formatCurrency(account.amount)}
                             </TableCell>
@@ -243,20 +311,23 @@ export default function FinancialStatements() {
                   </div>
                 );
               })}
-              
+
               <div className="mt-4 pt-2 border-t-2 border-black">
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total {section.category}</span>
                   <span>
-                    {section.category === "Assets" && formatCurrency(totalAssets)}
-                    {section.category === "Liabilities" && formatCurrency(totalLiabilities)}
-                    {section.category === "Equity" && formatCurrency(totalEquity)}
+                    {section.category === 'Assets' &&
+                      formatCurrency(totalAssets)}
+                    {section.category === 'Liabilities' &&
+                      formatCurrency(totalLiabilities)}
+                    {section.category === 'Equity' &&
+                      formatCurrency(totalEquity)}
                   </span>
                 </div>
               </div>
             </div>
           ))}
-          
+
           <div className="mt-6 pt-4 border-t-2 border-black">
             <div className="flex justify-between font-bold text-lg">
               <span>Total Liabilities and Equity</span>
@@ -272,22 +343,23 @@ export default function FinancialStatements() {
     if (!accounts) return null;
 
     // Group accounts by type for trial balance
-    const accountsByType = accounts.reduce((acc, account) => {
-      if (!acc[account.type]) {
-        acc[account.type] = [];
-      }
-      acc[account.type].push(account);
-      return acc;
-    }, {} as Record<string, Account[]>);
+    const accountsByType = accounts.reduce(
+      (acc, account) => {
+        if (!acc[account.type]) {
+          acc[account.type] = [];
+        }
+        acc[account.type].push(account);
+        return acc;
+      },
+      {} as Record<string, Account[]>,
+    );
 
     return (
       <div className="space-y-6">
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold">{currentCompany?.name}</h2>
           <h3 className="text-xl font-semibold">Trial Balance</h3>
-          <p className="text-muted-foreground">
-            As of {formatDate(endDate)}
-          </p>
+          <p className="text-muted-foreground">As of {formatDate(endDate)}</p>
         </div>
 
         <Table>
@@ -312,10 +384,14 @@ export default function FinancialStatements() {
                     <TableCell className="font-mono">{account.code}</TableCell>
                     <TableCell>{account.name}</TableCell>
                     <TableCell className="text-right">
-                      {['asset', 'expense'].includes(account.type) ? '$0.00' : ''}
+                      {['asset', 'expense'].includes(account.type)
+                        ? '$0.00'
+                        : ''}
                     </TableCell>
                     <TableCell className="text-right">
-                      {['liability', 'equity', 'revenue'].includes(account.type) ? '$0.00' : ''}
+                      {['liability', 'equity', 'revenue'].includes(account.type)
+                        ? '$0.00'
+                        : ''}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -336,8 +412,12 @@ export default function FinancialStatements() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h3 className="text-lg font-medium text-foreground">No Company Selected</h3>
-          <p className="text-muted-foreground">Please select a company to view financial statements.</p>
+          <h3 className="text-lg font-medium text-foreground">
+            No Company Selected
+          </h3>
+          <p className="text-muted-foreground">
+            Please select a company to view financial statements.
+          </p>
         </div>
       </div>
     );
@@ -347,7 +427,9 @@ export default function FinancialStatements() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Financial Statements</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Financial Statements
+          </h1>
           <p className="text-muted-foreground">
             Generate and view financial reports
           </p>
@@ -387,7 +469,7 @@ export default function FinancialStatements() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -397,7 +479,7 @@ export default function FinancialStatements() {
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="endDate">End Date</Label>
               <Input
@@ -417,13 +499,15 @@ export default function FinancialStatements() {
           {accountsLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-2 text-sm text-muted-foreground">Loading financial data...</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Loading financial data...
+              </p>
             </div>
           ) : (
             <div>
-              {reportType === "profit-loss" && renderProfitLoss()}
-              {reportType === "balance-sheet" && renderBalanceSheet()}
-              {reportType === "trial-balance" && renderTrialBalance()}
+              {reportType === 'profit-loss' && renderProfitLoss()}
+              {reportType === 'balance-sheet' && renderBalanceSheet()}
+              {reportType === 'trial-balance' && renderTrialBalance()}
             </div>
           )}
         </CardContent>
