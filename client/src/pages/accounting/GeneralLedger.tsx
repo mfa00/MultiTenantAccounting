@@ -27,7 +27,7 @@ interface JournalEntry {
 }
 
 export default function GeneralLedger() {
-  const [selectedAccount, setSelectedAccount] = useState<string>("");
+  const [selectedAccount, setSelectedAccount] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const { currentCompany } = useCompany();
@@ -102,7 +102,7 @@ export default function GeneralLedger() {
                   <SelectValue placeholder="All accounts" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All accounts</SelectItem>
+                  <SelectItem value="all">All accounts</SelectItem>
                   {accounts?.map((account) => (
                     <SelectItem key={account.id} value={account.id.toString()}>
                       {account.code} - {account.name}
