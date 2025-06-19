@@ -21,7 +21,8 @@
     "setup": "tsx --env-file=.env scripts/start-system.ts",
     "create-admin": "tsx --env-file=.env scripts/create-admin-user.ts",
     "fix-activity-logs": "tsx --env-file=.env scripts/fix-activity-logs.ts",
-    "fix-activity-logs-v2": "tsx --env-file=.env scripts/fix-activity-logs-v2.ts"
+    "fix-activity-logs-v2": "tsx --env-file=.env scripts/fix-activity-logs-v2.ts",
+    "migrate-company-settings": "tsx --env-file=.env scripts/migrate-company-settings.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -1,17 +1,49 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { authenticateUser, hashPassword, getUserWithCompanies } from "./auth";
-import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema, insertUserCompanySchema, users as usersTable, userCompanies as userCompaniesTable, companies as companiesTable, accounts, activityLogs } from "@shared/schema";
+import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema, insertUserCompanySchema, users as usersTable, userCompanies as userCompaniesTable, companies as companiesTable, accounts, activityLogs, companySettings } from "@shared/schema";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { db } from "./db";
 import globalAdminRouter from "./api/global-admin";
+import { apiRequest } from "../client/src/lib/queryClient";
 
 declare module "express-session" {
   interface SessionData {
     userId?: number;
     currentCompanyId?: number;
+  }
+}
+
+// Company settings helper functions
+async function getCompanySettings(companyId: number) {
+  try {
+    const [settings] = await db.select().from(companySettings).where(eq(companySettings.companyId, companyId));
+    return settings || undefined;
+  } catch (error) {
+    console.error('Error fetching company settings:', error);
+    return undefined;
+  }
+}
+
+async function createCompanySettings(settings: any) {
+  try {
+    const [newSettings] = await db.insert(companySettings).values(settings).returning();
+    return newSettings;
+  } catch (error) {
+    console.error('Error creating company settings:', error);
+    throw error;
+  }
+}
+
+async function updateCompanySettings(companyId: number, settingsUpdate: any) {
+  try {
+    const [updatedSettings] = await db.update(companySettings).set(settingsUpdate).where(eq(companySettings.companyId, companyId)).returning();
+    return updatedSettings || undefined;
+  } catch (error) {
+    console.error('Error updating company settings:', error);
+    return undefined;
   }
 }
 
@@ -340,34 +372,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No company selected' });
       }
 
-      // For now, return mock data - in production, calculate from actual transactions
+      const companyId = req.session.currentCompanyId;
+
+      // Calculate real metrics from database
+      // Total Revenue (from revenue accounts)
+      const revenueAccounts = await db.execute(sql`
+        SELECT SUM(jel.credit_amount::decimal - jel.debit_amount::decimal) as total
+        FROM journal_entry_lines jel
+        JOIN accounts a ON jel.account_id = a.id
+        JOIN journal_entries je ON jel.journal_entry_id = je.id
+        WHERE a.company_id = ${companyId} 
+        AND a.type = 'revenue' 
+        AND je.is_posted = true
+        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      `);
+
+      // Outstanding Invoices (unpaid invoices)
+      const outstandingInvoices = await db.execute(sql`
+        SELECT COALESCE(SUM(total_amount::decimal), 0) as total
+        FROM invoices 
+        WHERE company_id = ${companyId} 
+        AND status IN ('sent', 'overdue')
+      `);
+
+      // Cash Balance (from cash accounts)
+      const cashBalance = await db.execute(sql`
+        SELECT SUM(jel.debit_amount::decimal - jel.credit_amount::decimal) as total
+        FROM journal_entry_lines jel
+        JOIN accounts a ON jel.account_id = a.id
+        JOIN journal_entries je ON jel.journal_entry_id = je.id
+        WHERE a.company_id = ${companyId} 
+        AND a.type = 'asset' 
+        AND (a.name ILIKE '%cash%' OR a.name ILIKE '%bank%')
+        AND je.is_posted = true
+      `);
+
+      // Monthly Expenses (current month expense accounts)
+      const monthlyExpenses = await db.execute(sql`
+        SELECT SUM(jel.debit_amount::decimal - jel.credit_amount::decimal) as total
+        FROM journal_entry_lines jel
+        JOIN accounts a ON jel.account_id = a.id
+        JOIN journal_entries je ON jel.journal_entry_id = je.id
+        WHERE a.company_id = ${companyId} 
+        AND a.type = 'expense' 
+        AND je.is_posted = true
+        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM CURRENT_DATE)
+        AND EXTRACT(MONTH FROM je.date) = EXTRACT(MONTH FROM CURRENT_DATE)
+      `);
+
       const metrics = {
-        totalRevenue: 125430,
-        outstandingInvoices: 28940,
-        cashBalance: 45120,
-        monthlyExpenses: 18560,
+        totalRevenue: parseFloat((revenueAccounts.rows[0] as any)?.total || '0'),
+        outstandingInvoices: parseFloat((outstandingInvoices.rows[0] as any)?.total || '0'),
+        cashBalance: parseFloat((cashBalance.rows[0] as any)?.total || '0'),
+        monthlyExpenses: parseFloat((monthlyExpenses.rows[0] as any)?.total || '0'),
       };
 
       res.json(metrics);
     } catch (error) {
-      console.error('Get dashboard metrics error:', error);
+      console.error('Dashboard metrics error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 
-  // Recent transactions
+  // Recent transactions for dashboard
   app.get('/api/dashboard/recent-transactions', requireAuth, async (req, res) => {
     try {
       if (!req.session.currentCompanyId) {
         return res.status(400).json({ message: 'No company selected' });
       }
 
-      const entries = await storage.getJournalEntriesByCompany(req.session.currentCompanyId);
-      const recentEntries = entries.slice(0, 10);
+      const recentTransactions = await db.execute(sql`
+        SELECT 
+          je.id,
+          je.entry_number,
+          je.date,
+          je.description,
+          je.total_amount,
+          je.is_posted
+        FROM journal_entries je
+        WHERE je.company_id = ${req.session.currentCompanyId}
+        ORDER BY je.date DESC, je.created_at DESC
+        LIMIT 10
+      `);
 
-      res.json(recentEntries);
+      res.json(recentTransactions.rows);
     } catch (error) {
-      console.error('Get recent transactions error:', error);
+      console.error('Recent transactions error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -636,46 +726,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Company not found' });
       }
 
-      // TODO: In the future, settings would be stored in a separate table
-      // For now, return default settings structure
+      // Get company settings from database
+      let settings = await getCompanySettings(companyId);
+      
+      // If no settings exist, create default ones
+      if (!settings) {
+        const defaultSettings = {
+          companyId,
+          emailNotifications: true,
+          invoiceReminders: true,
+          paymentAlerts: true,
+          reportReminders: false,
+          systemUpdates: true,
+          autoNumbering: true,
+          invoicePrefix: "INV",
+          billPrefix: "BILL",
+          journalPrefix: "JE",
+          decimalPlaces: 2,
+          negativeFormat: "minus",
+          dateFormat: "MM/DD/YYYY",
+          timeZone: "America/New_York",
+          requirePasswordChange: false,
+          passwordExpireDays: 90,
+          sessionTimeout: 30,
+          enableTwoFactor: false,
+          allowMultipleSessions: true,
+          bankConnection: false,
+          paymentGateway: false,
+          taxService: false,
+          reportingTools: false,
+          autoBackup: false,
+          backupFrequency: "weekly",
+          retentionDays: 30,
+          backupLocation: "cloud",
+        };
+        
+        try {
+          settings = await createCompanySettings(defaultSettings);
+        } catch (error) {
+          console.error('Failed to create default settings:', error);
+          // Return default structure if creation fails
+          settings = { ...defaultSettings, id: 0, createdAt: new Date(), updatedAt: new Date() };
+        }
+      }
+
       const companySettings = {
         ...company,
         settings: {
           notifications: {
-            emailNotifications: true,
-            invoiceReminders: true,
-            paymentAlerts: true,
-            reportReminders: false,
-            systemUpdates: true,
+            emailNotifications: settings.emailNotifications,
+            invoiceReminders: settings.invoiceReminders,
+            paymentAlerts: settings.paymentAlerts,
+            reportReminders: settings.reportReminders,
+            systemUpdates: settings.systemUpdates,
           },
           financial: {
-            autoNumbering: true,
-            invoicePrefix: "INV",
-            billPrefix: "BILL",
-            journalPrefix: "JE",
-            decimalPlaces: 2,
-            negativeFormat: "minus",
-            dateFormat: "MM/DD/YYYY",
-            timeZone: "America/New_York",
+            autoNumbering: settings.autoNumbering,
+            invoicePrefix: settings.invoicePrefix,
+            billPrefix: settings.billPrefix,
+            journalPrefix: settings.journalPrefix,
+            decimalPlaces: settings.decimalPlaces,
+            negativeFormat: settings.negativeFormat,
+            dateFormat: settings.dateFormat,
+            timeZone: settings.timeZone,
           },
           security: {
-            requirePasswordChange: false,
-            passwordExpireDays: 90,
-            sessionTimeout: 30,
-            enableTwoFactor: false,
-            allowMultipleSessions: true,
+            requirePasswordChange: settings.requirePasswordChange,
+            passwordExpireDays: settings.passwordExpireDays,
+            sessionTimeout: settings.sessionTimeout,
+            enableTwoFactor: settings.enableTwoFactor,
+            allowMultipleSessions: settings.allowMultipleSessions,
           },
           backup: {
-            autoBackup: false,
-            backupFrequency: "weekly",
-            retentionDays: 30,
-            backupLocation: "cloud",
+            autoBackup: settings.autoBackup,
+            backupFrequency: settings.backupFrequency,
+            retentionDays: settings.retentionDays,
+            backupLocation: settings.backupLocation,
           },
           integration: {
-            bankConnection: false,
-            paymentGateway: false,
-            taxService: false,
-            reportingTools: false,
+            bankConnection: settings.bankConnection,
+            paymentGateway: settings.paymentGateway,
+            taxService: settings.taxService,
+            reportingTools: settings.reportingTools,
           },
         },
       };
@@ -734,9 +866,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // TODO: Store notification settings in database
-      // For now, just return success
-      res.json({ message: 'Notification settings updated successfully' });
+      // Update notification settings in database
+      const updateData = {
+        emailNotifications: req.body.emailNotifications,
+        invoiceReminders: req.body.invoiceReminders,
+        paymentAlerts: req.body.paymentAlerts,
+        reportReminders: req.body.reportReminders,
+        systemUpdates: req.body.systemUpdates,
+      };
+
+      const updatedSettings = await updateCompanySettings(companyId, updateData);
+      
+      if (!updatedSettings) {
+        return res.status(404).json({ message: 'Company settings not found' });
+      }
+
+      res.json({ message: 'Notification settings updated successfully', settings: updatedSettings });
     } catch (error) {
       console.error('Update notification settings error:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -755,9 +900,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // TODO: Store financial settings in database
-      // For now, just return success
-      res.json({ message: 'Financial settings updated successfully' });
+      // Update financial settings in database
+      const updateData = {
+        autoNumbering: req.body.autoNumbering,
+        invoicePrefix: req.body.invoicePrefix,
+        billPrefix: req.body.billPrefix,
+        journalPrefix: req.body.journalPrefix,
+        decimalPlaces: req.body.decimalPlaces,
+        negativeFormat: req.body.negativeFormat,
+        dateFormat: req.body.dateFormat,
+        timeZone: req.body.timeZone,
+      };
+
+      const updatedSettings = await updateCompanySettings(companyId, updateData);
+      
+      if (!updatedSettings) {
+        return res.status(404).json({ message: 'Company settings not found' });
+      }
+
+      res.json({ message: 'Financial settings updated successfully', settings: updatedSettings });
     } catch (error) {
       console.error('Update financial settings error:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -776,9 +937,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // TODO: Store security settings in database
-      // For now, just return success
-      res.json({ message: 'Security settings updated successfully' });
+      // Update security settings in database
+      const updateData = {
+        requirePasswordChange: req.body.requirePasswordChange,
+        passwordExpireDays: req.body.passwordExpireDays,
+        sessionTimeout: req.body.sessionTimeout,
+        enableTwoFactor: req.body.enableTwoFactor,
+        allowMultipleSessions: req.body.allowMultipleSessions,
+      };
+
+      const updatedSettings = await updateCompanySettings(companyId, updateData);
+      
+      if (!updatedSettings) {
+        return res.status(404).json({ message: 'Company settings not found' });
+      }
+
+      res.json({ message: 'Security settings updated successfully', settings: updatedSettings });
     } catch (error) {
       console.error('Update security settings error:', error);
       res.status(500).json({ message: 'Internal server error' });

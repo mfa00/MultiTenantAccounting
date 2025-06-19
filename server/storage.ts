@@ -1,11 +1,12 @@
 import { 
   users, companies, userCompanies, accounts, journalEntries, journalEntryLines,
-  customers, vendors, invoices, bills, activityLogs,
+  customers, vendors, invoices, bills, activityLogs, companySettings,
   type User, type InsertUser, type Company, type InsertCompany,
   type UserCompany, type InsertUserCompany, type Account, type InsertAccount,
   type JournalEntry, type InsertJournalEntry, type JournalEntryLine, type InsertJournalEntryLine,
   type Customer, type InsertCustomer, type Vendor, type InsertVendor,
-  type Invoice, type InsertInvoice, type Bill, type InsertBill
+  type Invoice, type InsertInvoice, type Bill, type InsertBill,
+  type CompanySettings, type InsertCompanySettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
@@ -81,6 +82,11 @@ export interface IStorage {
   companyHasData(companyId: number): Promise<boolean>;
   getActivityLogs(limit: number): Promise<ActivityLog[]>;
   logActivity(userId: number, action: string, resource: string, details?: string, ipAddress?: string): Promise<void>;
+
+  // Company Settings methods
+  getCompanySettings(companyId: number): Promise<CompanySettings | undefined>;
+  createCompanySettings(settings: InsertCompanySettings): Promise<CompanySettings>;
+  updateCompanySettings(companyId: number, settings: Partial<InsertCompanySettings>): Promise<CompanySettings | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -446,6 +452,22 @@ export class DatabaseStorage implements IStorage {
     // This would insert into an activity_logs table
     // Implementation depends on your activity logging requirements
     console.log('Activity:', { userId, action, resource, details, ipAddress });
+  }
+
+  // Company Settings methods
+  async getCompanySettings(companyId: number): Promise<CompanySettings | undefined> {
+    const [settings] = await db.select().from(companySettings).where(eq(companySettings.companyId, companyId));
+    return settings || undefined;
+  }
+
+  async createCompanySettings(settings: InsertCompanySettings): Promise<CompanySettings> {
+    const [newSettings] = await db.insert(companySettings).values(settings).returning();
+    return newSettings;
+  }
+
+  async updateCompanySettings(companyId: number, settings: Partial<InsertCompanySettings>): Promise<CompanySettings | undefined> {
+    const [updatedSettings] = await db.update(companySettings).set(settings).where(eq(companySettings.companyId, companyId)).returning();
+    return updatedSettings || undefined;
   }
 }
 

@@ -146,13 +146,53 @@ export const activityLogs = pgTable("activity_logs", {
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 });
 
+// Company Settings
+export const companySettings = pgTable("company_settings", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").references(() => companies.id).notNull().unique(),
+  // Notification settings
+  emailNotifications: boolean("email_notifications").default(true),
+  invoiceReminders: boolean("invoice_reminders").default(true),
+  paymentAlerts: boolean("payment_alerts").default(true),
+  reportReminders: boolean("report_reminders").default(false),
+  systemUpdates: boolean("system_updates").default(true),
+  // Financial settings
+  autoNumbering: boolean("auto_numbering").default(true),
+  invoicePrefix: text("invoice_prefix").default("INV"),
+  billPrefix: text("bill_prefix").default("BILL"),
+  journalPrefix: text("journal_prefix").default("JE"),
+  decimalPlaces: integer("decimal_places").default(2),
+  negativeFormat: text("negative_format").default("minus"), // "minus", "parentheses", "color"
+  dateFormat: text("date_format").default("MM/DD/YYYY"), // "MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"
+  timeZone: text("time_zone").default("America/New_York"),
+  // Security settings
+  requirePasswordChange: boolean("require_password_change").default(false),
+  passwordExpireDays: integer("password_expire_days").default(90),
+  sessionTimeout: integer("session_timeout").default(30), // minutes
+  enableTwoFactor: boolean("enable_two_factor").default(false),
+  allowMultipleSessions: boolean("allow_multiple_sessions").default(true),
+  // Integration settings
+  bankConnection: boolean("bank_connection").default(false),
+  paymentGateway: boolean("payment_gateway").default(false),
+  taxService: boolean("tax_service").default(false),
+  reportingTools: boolean("reporting_tools").default(false),
+  // Backup settings
+  autoBackup: boolean("auto_backup").default(false),
+  backupFrequency: text("backup_frequency").default("weekly"), // "daily", "weekly", "monthly"
+  retentionDays: integer("retention_days").default(30),
+  backupLocation: text("backup_location").default("cloud"), // "local", "cloud"
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userCompanies: many(userCompanies),
   journalEntries: many(journalEntries),
 }));
 
-export const companiesRelations = relations(companies, ({ many }) => ({
+export const companiesRelations = relations(companies, ({ many, one }) => ({
   userCompanies: many(userCompanies),
   accounts: many(accounts),
   journalEntries: many(journalEntries),
@@ -160,6 +200,7 @@ export const companiesRelations = relations(companies, ({ many }) => ({
   vendors: many(vendors),
   invoices: many(invoices),
   bills: many(bills),
+  settings: one(companySettings),
 }));
 
 export const userCompaniesRelations = relations(userCompanies, ({ one }) => ({
@@ -205,6 +246,10 @@ export const billsRelations = relations(bills, ({ one }) => ({
   vendor: one(vendors, { fields: [bills.vendorId], references: [vendors.id] }),
 }));
 
+export const companySettingsRelations = relations(companySettings, ({ one }) => ({
+  company: one(companies, { fields: [companySettings.companyId], references: [companies.id] }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true });
@@ -217,6 +262,7 @@ export const insertVendorSchema = createInsertSchema(vendors).omit({ id: true, c
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
 export const insertBillSchema = createInsertSchema(bills).omit({ id: true, createdAt: true });
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
+export const insertCompanySettingsSchema = createInsertSchema(companySettings).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Enhanced validation schemas with business rules
 export const insertUserSchemaEnhanced = insertUserSchema.extend({
@@ -309,6 +355,8 @@ export type Bill = typeof bills.$inferSelect;
 export type InsertBill = z.infer<typeof insertBillSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+export type CompanySettings = typeof companySettings.$inferSelect;
+export type InsertCompanySettings = z.infer<typeof insertCompanySettingsSchema>;
 
 // Enhanced types with validation
 export type InsertUserEnhanced = z.infer<typeof insertUserSchemaEnhanced>;
