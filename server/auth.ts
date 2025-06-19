@@ -53,12 +53,19 @@ export async function getUserWithCompanies(userId: number) {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      globalRole: user.globalRole,
     },
     companies: companies.map(company => {
       const userCompany = userCompanies.find(uc => uc.companyId === company.id);
+      
+      let role = userCompany?.role || 'assistant';
+      if (user.globalRole === 'global_administrator' && !userCompany) {
+        role = 'administrator';
+      }
+      
       return {
         ...company,
-        role: userCompany?.role || 'assistant',
+        role: role,
       };
     }),
   };

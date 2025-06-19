@@ -21,6 +21,7 @@ export interface IStorage {
   // Company methods
   getCompany(id: number): Promise<Company | undefined>;
   getCompaniesByUser(userId: number): Promise<Company[]>;
+  getAllCompanies(): Promise<Company[]>;
   createCompany(company: InsertCompany): Promise<Company>;
   updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company | undefined>;
 
@@ -105,6 +106,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCompaniesByUser(userId: number): Promise<Company[]> {
+    // First check if user is a global administrator
+    const user = await this.getUser(userId);
+    if (user?.globalRole === 'global_administrator') {
+      // Global admins see ALL companies
+      return await this.getAllCompanies();
+    }
+
+    // Regular users see only assigned companies
     const userCompaniesData = await db
       .select({ company: companies })
       .from(userCompanies)
@@ -112,6 +121,14 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userCompanies.userId, userId), eq(userCompanies.isActive, true)));
     
     return userCompaniesData.map(uc => uc.company);
+  }
+
+  async getAllCompanies(): Promise<Company[]> {
+    return await db
+      .select()
+      .from(companies)
+      .where(eq(companies.isActive, true))
+      .orderBy(asc(companies.name));
   }
 
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
