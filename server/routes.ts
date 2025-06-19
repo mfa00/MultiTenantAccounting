@@ -265,6 +265,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/customers', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const customerData = {
+        ...req.body,
+        companyId: req.session.currentCompanyId,
+      };
+      
+      const customer = await storage.createCustomer(customerData);
+      res.json(customer);
+    } catch (error) {
+      console.error('Create customer error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Invoice routes
+  app.get('/api/invoices', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+      
+      const invoices = await storage.getInvoicesByCompany(req.session.currentCompanyId);
+      res.json(invoices);
+    } catch (error) {
+      console.error('Get invoices error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/invoices', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const invoiceData = {
+        ...req.body,
+        companyId: req.session.currentCompanyId,
+      };
+      
+      const invoice = await storage.createInvoice(invoiceData);
+      res.json(invoice);
+    } catch (error) {
+      console.error('Create invoice error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Journal entry lines route
+  app.post('/api/journal-entry-lines', requireAuth, async (req, res) => {
+    try {
+      const lineData = req.body;
+      const line = await storage.createJournalEntryLine(lineData);
+      res.json(line);
+    } catch (error) {
+      console.error('Create journal entry line error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Dashboard metrics
   app.get('/api/dashboard/metrics', requireAuth, async (req, res) => {
     try {
