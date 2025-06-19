@@ -133,11 +133,52 @@ The application uses a comprehensive accounting database schema including:
 - Production/development mode detection
 - Replit-specific optimizations for cloud deployment
 
+## Role-Based Access Control System
+
+### Access Levels
+
+The application implements four distinct access levels with hierarchical permissions:
+
+#### 1. Assistant Accountant
+- **Purpose**: Data entry and basic operations
+- **Permissions**: View dashboard, create customers/vendors, basic journal entries, view invoices/bills, basic reporting
+- **Restrictions**: Cannot modify chart of accounts, delete records, or access settings
+
+#### 2. Accountant  
+- **Purpose**: Full accounting operations
+- **Permissions**: All assistant permissions plus account management, journal posting/unposting, invoice sending, bill payments, report exports
+- **Restrictions**: Cannot manage users, companies, or system settings
+
+#### 3. Manager
+- **Purpose**: Company management and full accounting
+- **Permissions**: All accountant permissions plus user management within company, company settings, custom reports, account/record deletion
+- **Restrictions**: Cannot create new companies or manage system-wide users
+
+#### 4. Administrator
+- **Purpose**: Full system access
+- **Permissions**: All manager permissions plus company creation, system-wide user management, complete access across all companies
+- **Restrictions**: None
+
+### Permission Enforcement
+
+- **Navigation**: Menu items are dynamically filtered based on user permissions
+- **API**: All endpoints validate user roles and company access
+- **UI**: Create/edit/delete buttons are conditionally rendered based on permissions
+- **Company Isolation**: All data is scoped to the selected company except for administrators
+
+### Role Assignment Rules
+
+- Administrators can assign any role to any user
+- Managers can assign Assistant and Accountant roles only
+- Accountants and Assistants cannot assign roles
+- Users can belong to multiple companies with different roles per company
+
 ## Changelog
 
 ```
 Changelog:
 - June 19, 2025. Initial setup
+- June 19, 2025. Implemented comprehensive role-based access control system with four access levels
 ```
 
 ## User Preferences

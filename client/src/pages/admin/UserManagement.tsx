@@ -9,14 +9,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, UserPlus, Building, Shield } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Edit, Trash2, UserPlus, Building, Shield, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 import { apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { getRolePermissions, getRoleDescription, canAssignRole, type Role } from "@shared/permissions";
 
 interface User {
   id: number;
@@ -75,23 +78,42 @@ type CompanyForm = z.infer<typeof companySchema>;
 type UserCompanyForm = z.infer<typeof userCompanySchema>;
 
 const roles = [
-  { value: "administrator", label: "Administrator", description: "Full system access" },
-  { value: "manager", label: "Manager", description: "Company management and full accounting" },
-  { value: "accountant", label: "Accountant", description: "Full accounting operations" },
-  { value: "assistant", label: "Assistant", description: "Limited data entry and reporting" },
+  { 
+    value: "administrator", 
+    label: "Administrator", 
+    description: "Full system access including user management, company creation, and all accounting operations across all companies." 
+  },
+  { 
+    value: "manager", 
+    label: "Manager", 
+    description: "Complete accounting access plus company management. Can manage users within their company and modify company settings." 
+  },
+  { 
+    value: "accountant", 
+    label: "Accountant", 
+    description: "Full accounting operations including journal entries, invoices, bills, and financial reporting. Cannot manage users or companies." 
+  },
+  { 
+    value: "assistant", 
+    label: "Assistant Accountant", 
+    description: "Limited data entry and basic reporting access. Can create customers, vendors, and basic transactions but cannot modify system settings." 
+  },
 ];
 
 export default function UserManagement() {
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [isRoleDetailsOpen, setIsRoleDetailsOpen] = useState(false);
   const { user: currentUser, companies: userCompanies } = useAuth();
   const { currentCompany } = useCompany();
   const { toast } = useToast();
+  const { currentRole, canViewUsers, canCreateUsers, canAssignRoles } = usePermissions();
   const queryClient = useQueryClient();
 
-  // Check if current user is administrator or manager
-  const canManageUsers = userCompanies.some(uc => ['administrator', 'manager'].includes(uc.role));
+  // Check if current user can manage users
+  const canManageUsers = canViewUsers();
 
   const { data: users, isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/users'],
@@ -269,6 +291,7 @@ export default function UserManagement() {
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="companies">Companies</TabsTrigger>
           <TabsTrigger value="assignments">User Assignments</TabsTrigger>
+          <TabsTrigger value="roles">Role Permissions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-6">
@@ -754,6 +777,105 @@ export default function UserManagement() {
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="roles" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Role Permissions & Access Levels</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Detailed breakdown of what each role can access and perform in the system
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6">
+                {roles.map((role) => {
+                  const permissions = getRolePermissions(role.value as Role);
+                  const isCurrentRole = currentRole === role.value;
+                  
+                  // Group permissions by module
+                  const groupedPermissions = permissions.reduce((acc, perm) => {
+                    if (!acc[perm.module]) {
+                      acc[perm.module] = [];
+                    }
+                    acc[perm.module].push(perm);
+                    return acc;
+                  }, {} as Record<string, typeof permissions>);
+
+                  return (
+                    <Card key={role.value} className={`border-2 ${isCurrentRole ? 'border-primary' : 'border-border'}`}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Badge className={getRoleColor(role.value)}>
+                              {role.label}
+                            </Badge>
+                            {isCurrentRole && (
+                              <Badge variant="outline" className="text-xs">
+                                Your Role
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {permissions.length} permissions
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {getRoleDescription(role.value as Role)}
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-between p-0">
+                              <span className="font-medium">View Detailed Permissions</span>
+                              <ChevronDown className="w-4 h-4" />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="mt-4">
+                            <div className="space-y-4">
+                              {Object.entries(groupedPermissions).map(([module, modulePermissions]) => (
+                                <div key={module} className="border rounded-lg p-4">
+                                  <h4 className="font-medium text-sm mb-2 capitalize flex items-center">
+                                    <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
+                                    {module.replace('_', ' ')} Module
+                                  </h4>
+                                  <div className="grid gap-1">
+                                    {modulePermissions.map((perm) => (
+                                      <div key={`${perm.module}-${perm.action}`} className="flex items-center text-sm">
+                                        <ChevronRight className="w-3 h-3 mr-2 text-muted-foreground" />
+                                        <span className="text-muted-foreground">{perm.description}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              <div className="mt-8 p-4 bg-muted rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <Info className="w-5 h-5 text-blue-500 mt-0.5" />
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Role Assignment Rules</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Administrators can assign any role to any user</li>
+                      <li>• Managers can assign Assistant and Accountant roles only</li>
+                      <li>• Accountants and Assistants cannot assign roles</li>
+                      <li>• Users can belong to multiple companies with different roles</li>
+                      <li>• Role permissions are company-specific and enforced throughout the system</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
