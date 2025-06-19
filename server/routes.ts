@@ -117,7 +117,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userWithCompanies) {
         return res.status(404).json({ message: 'User not found' });
       }
-      res.json(userWithCompanies);
+      
+      // Include the current company ID from session
+      const response = {
+        ...userWithCompanies,
+        currentCompanyId: req.session.currentCompanyId || null,
+      };
+      
+      console.log('Backend: /api/auth/me returning currentCompanyId:', response.currentCompanyId);
+      res.json(response);
     } catch (error) {
       console.error('Get user error:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -157,6 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/companies/:id/switch', requireAuth, async (req, res) => {
     try {
       const companyId = parseInt(req.params.id);
+      console.log('Backend: switching company to', companyId, 'for user', req.session.userId);
       
       // Verify user has access to this company
       const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
@@ -165,6 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.currentCompanyId = companyId;
+      console.log('Backend: session currentCompanyId set to', req.session.currentCompanyId);
       res.json({ message: 'Company switched successfully' });
     } catch (error) {
       console.error('Switch company error:', error);

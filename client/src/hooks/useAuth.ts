@@ -101,6 +101,7 @@ export function useAuth() {
   return {
     user: data?.user || null,
     companies: data?.companies || [],
+    currentCompanyId: data?.currentCompanyId || null,
     isLoading,
     error,
     login: loginMutation.mutate,

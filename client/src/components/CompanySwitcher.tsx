@@ -9,6 +9,7 @@ export default function CompanySwitcher() {
   const { currentCompany, companies, switchToCompany } = useCompany();
 
   const handleSwitchCompany = (companyId: number) => {
+    console.log('CompanySwitcher: switching to company', companyId);
     // Update local state immediately for UI responsiveness
     switchToCompany(companyId);
     // Also call the backend API

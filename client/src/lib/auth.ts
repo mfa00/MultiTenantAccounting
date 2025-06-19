@@ -18,6 +18,7 @@ export interface Company {
 export interface AuthResponse {
   user: AuthUser;
   companies: Company[];
+  currentCompanyId?: number | null;
 }
 
 export async function login(username: string, password: string): Promise<AuthResponse> {
