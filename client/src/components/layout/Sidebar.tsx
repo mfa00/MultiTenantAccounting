@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Calculator, BarChart3, List, Book, File, Receipt, 
          University, Edit, FileText, DollarSign, ChartBar, 
-         Scale, PieChart, Users, Settings } from "lucide-react";
+         Scale, PieChart, Users, Settings, Shield } from "lucide-react";
 import CompanySwitcher from "../CompanySwitcher";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -108,6 +108,12 @@ const adminSection: NavigationItem[] = [
     href: "/user-management",
     icon: Users,
     permission: "USER_VIEW",
+  },
+  {
+    name: "Role Management",
+    href: "/role-management",
+    icon: Shield,
+    permission: "USER_VIEW", // Only admins and managers can access
   },
   {
     name: "Settings",

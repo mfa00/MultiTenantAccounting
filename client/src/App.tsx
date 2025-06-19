@@ -15,6 +15,7 @@ import FinancialStatements from "@/pages/reports/FinancialStatements";
 import UserManagement from "@/pages/admin/UserManagement";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
+import RoleManagement from "@/pages/admin/RoleManagement";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
       <Route path="/financial-statements" component={() => <ProtectedRoute component={FinancialStatements} />} />
       <Route path="/user-management" component={() => <ProtectedRoute component={UserManagement} />} />
+      <Route path="/role-management" component={() => <ProtectedRoute component={RoleManagement} />} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
       <Route component={NotFound} />
     </Switch>
