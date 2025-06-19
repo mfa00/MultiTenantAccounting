@@ -390,10 +390,10 @@ export default function GlobalAdministration() {
     }
 
     try {
-      if (editingCompany) {
-        updateCompanyMutation.mutate({ id: editingCompany.id, data });
-      } else {
-        createCompanyMutation.mutate(data);
+    if (editingCompany) {
+      updateCompanyMutation.mutate({ id: editingCompany.id, data });
+    } else {
+      createCompanyMutation.mutate(data);
       }
     } catch (error) {
       console.error('Form submission error:', error);
@@ -412,7 +412,7 @@ export default function GlobalAdministration() {
     }
 
     try {
-      if (editingUser) {
+    if (editingUser) {
         // For editing, password is optional
         const updateData: Partial<GlobalUserForm> = { ...data };
         if (!data.password || data.password.trim() === '') {
@@ -420,9 +420,9 @@ export default function GlobalAdministration() {
           const { password, ...dataWithoutPassword } = updateData;
           updateGlobalUserMutation.mutate({ id: editingUser.id, data: dataWithoutPassword });
         } else {
-          updateGlobalUserMutation.mutate({ id: editingUser.id, data: updateData });
+      updateGlobalUserMutation.mutate({ id: editingUser.id, data: updateData });
         }
-      } else {
+    } else {
         // For creating, password is required
         if (!data.password || data.password.trim() === '') {
           toast({

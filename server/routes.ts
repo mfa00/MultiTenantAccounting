@@ -372,92 +372,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No company selected' });
       }
 
-      const companyId = req.session.currentCompanyId;
-
-      // Calculate real metrics from database
-      // Total Revenue (from revenue accounts)
-      const revenueAccounts = await db.execute(sql`
-        SELECT SUM(jel.credit_amount::decimal - jel.debit_amount::decimal) as total
-        FROM journal_entry_lines jel
-        JOIN accounts a ON jel.account_id = a.id
-        JOIN journal_entries je ON jel.journal_entry_id = je.id
-        WHERE a.company_id = ${companyId} 
-        AND a.type = 'revenue' 
-        AND je.is_posted = true
-        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM CURRENT_DATE)
-      `);
-
-      // Outstanding Invoices (unpaid invoices)
-      const outstandingInvoices = await db.execute(sql`
-        SELECT COALESCE(SUM(total_amount::decimal), 0) as total
-        FROM invoices 
-        WHERE company_id = ${companyId} 
-        AND status IN ('sent', 'overdue')
-      `);
-
-      // Cash Balance (from cash accounts)
-      const cashBalance = await db.execute(sql`
-        SELECT SUM(jel.debit_amount::decimal - jel.credit_amount::decimal) as total
-        FROM journal_entry_lines jel
-        JOIN accounts a ON jel.account_id = a.id
-        JOIN journal_entries je ON jel.journal_entry_id = je.id
-        WHERE a.company_id = ${companyId} 
-        AND a.type = 'asset' 
-        AND (a.name ILIKE '%cash%' OR a.name ILIKE '%bank%')
-        AND je.is_posted = true
-      `);
-
-      // Monthly Expenses (current month expense accounts)
-      const monthlyExpenses = await db.execute(sql`
-        SELECT SUM(jel.debit_amount::decimal - jel.credit_amount::decimal) as total
-        FROM journal_entry_lines jel
-        JOIN accounts a ON jel.account_id = a.id
-        JOIN journal_entries je ON jel.journal_entry_id = je.id
-        WHERE a.company_id = ${companyId} 
-        AND a.type = 'expense' 
-        AND je.is_posted = true
-        AND EXTRACT(YEAR FROM je.date) = EXTRACT(YEAR FROM CURRENT_DATE)
-        AND EXTRACT(MONTH FROM je.date) = EXTRACT(MONTH FROM CURRENT_DATE)
-      `);
-
+      // For now, return mock data - in production, calculate from actual transactions
       const metrics = {
-        totalRevenue: parseFloat((revenueAccounts.rows[0] as any)?.total || '0'),
-        outstandingInvoices: parseFloat((outstandingInvoices.rows[0] as any)?.total || '0'),
-        cashBalance: parseFloat((cashBalance.rows[0] as any)?.total || '0'),
-        monthlyExpenses: parseFloat((monthlyExpenses.rows[0] as any)?.total || '0'),
+        totalRevenue: 125430,
+        outstandingInvoices: 28940,
+        cashBalance: 45120,
+        monthlyExpenses: 18560,
       };
 
       res.json(metrics);
     } catch (error) {
-      console.error('Dashboard metrics error:', error);
+      console.error('Get dashboard metrics error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 
-  // Recent transactions for dashboard
+  // Recent transactions
   app.get('/api/dashboard/recent-transactions', requireAuth, async (req, res) => {
     try {
       if (!req.session.currentCompanyId) {
         return res.status(400).json({ message: 'No company selected' });
       }
 
-      const recentTransactions = await db.execute(sql`
-        SELECT 
-          je.id,
-          je.entry_number,
-          je.date,
-          je.description,
-          je.total_amount,
-          je.is_posted
-        FROM journal_entries je
-        WHERE je.company_id = ${req.session.currentCompanyId}
-        ORDER BY je.date DESC, je.created_at DESC
-        LIMIT 10
-      `);
+      const entries = await storage.getJournalEntriesByCompany(req.session.currentCompanyId);
+      const recentEntries = entries.slice(0, 10);
 
-      res.json(recentTransactions.rows);
+      res.json(recentEntries);
     } catch (error) {
-      console.error('Recent transactions error:', error);
+      console.error('Get recent transactions error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
