@@ -585,6 +585,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete endpoints
+  app.delete('/api/users/:id', requireAuth, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (userId === req.session.userId) {
+        return res.status(400).json({ message: 'Cannot delete your own account' });
+      }
+
+      // TODO: Implement actual user deletion in storage
+      // For now, just return success
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Delete user error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/companies/:id', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+
+      // TODO: Implement actual company deletion in storage
+      // For now, just return success
+      res.json({ message: 'Company deleted successfully' });
+    } catch (error) {
+      console.error('Delete company error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

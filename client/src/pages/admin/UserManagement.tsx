@@ -106,6 +106,8 @@ export default function UserManagement() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isRoleDetailsOpen, setIsRoleDetailsOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const { user: currentUser, companies: userCompanies } = useAuth();
   const { currentCompany } = useCompany();
   const { toast } = useToast();
@@ -222,6 +224,42 @@ export default function UserManagement() {
     },
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: (userId: number) => apiRequest('DELETE', `/api/users/${userId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: "User deleted",
+        description: "The user has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCompanyMutation = useMutation({
+    mutationFn: (companyId: number) => apiRequest('DELETE', `/api/companies/${companyId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
+      toast({
+        title: "Company deleted",
+        description: "The company has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete company",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onUserSubmit = (data: UserForm) => {
     createUserMutation.mutate(data);
   };
@@ -261,6 +299,45 @@ export default function UserManagement() {
     });
   };
 
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    // Pre-fill the form with user data
+    userForm.reset({
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      password: "", // Don't pre-fill password
+    });
+    setIsUserDialogOpen(true);
+  };
+
+  const handleDeleteUser = (user: User) => {
+    if (confirm(`Are you sure you want to delete user "${user.firstName} ${user.lastName}"?`)) {
+      deleteUserMutation.mutate(user.id);
+    }
+  };
+
+  const handleEditCompany = (company: Company) => {
+    setEditingCompany(company);
+    // Pre-fill the form with company data
+    companyForm.reset({
+      name: company.name,
+      code: company.code,
+      email: company.email || "",
+      address: company.address || "",
+      phone: "",
+      taxId: "",
+    });
+    setIsCompanyDialogOpen(true);
+  };
+
+  const handleDeleteCompany = (company: Company) => {
+    if (confirm(`Are you sure you want to delete company "${company.name}"?`)) {
+      deleteCompanyMutation.mutate(company.id);
+    }
+  };
+
   if (!canManageUsers) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -296,7 +373,16 @@ export default function UserManagement() {
 
         <TabsContent value="users" className="space-y-6">
           <div className="flex justify-end">
-            <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+            <Dialog 
+              open={isUserDialogOpen} 
+              onOpenChange={(open) => {
+                setIsUserDialogOpen(open);
+                if (!open) {
+                  setEditingUser(null);
+                  userForm.reset();
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button>
                   <UserPlus className="w-4 h-4 mr-2" />
@@ -305,7 +391,7 @@ export default function UserManagement() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create New User</DialogTitle>
+                  <DialogTitle>{editingUser ? "Edit User" : "Create New User"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={userForm.handleSubmit(onUserSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -437,10 +523,19 @@ export default function UserManagement() {
                           <TableCell>{formatDate(user.createdAt)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end space-x-2">
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditUser(user)}
+                              >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" className="text-destructive">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-destructive"
+                                onClick={() => handleDeleteUser(user)}
+                              >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
@@ -463,7 +558,16 @@ export default function UserManagement() {
 
         <TabsContent value="companies" className="space-y-6">
           <div className="flex justify-end">
-            <Dialog open={isCompanyDialogOpen} onOpenChange={setIsCompanyDialogOpen}>
+            <Dialog 
+              open={isCompanyDialogOpen} 
+              onOpenChange={(open) => {
+                setIsCompanyDialogOpen(open);
+                if (!open) {
+                  setEditingCompany(null);
+                  companyForm.reset();
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button>
                   <Building className="w-4 h-4 mr-2" />
@@ -472,7 +576,7 @@ export default function UserManagement() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create New Company</DialogTitle>
+                  <DialogTitle>{editingCompany ? "Edit Company" : "Create New Company"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={companyForm.handleSubmit(onCompanySubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -580,10 +684,19 @@ export default function UserManagement() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end space-x-2">
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditCompany(company)}
+                              >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" className="text-destructive">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-destructive"
+                                onClick={() => handleDeleteCompany(company)}
+                              >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>

@@ -6,7 +6,14 @@ import { useCompany } from "@/hooks/useCompany";
 
 export default function CompanySwitcher() {
   const { switchCompany, isSwitchPending } = useAuth();
-  const { currentCompany, companies } = useCompany();
+  const { currentCompany, companies, switchToCompany } = useCompany();
+
+  const handleSwitchCompany = (companyId: number) => {
+    // Update local state immediately for UI responsiveness
+    switchToCompany(companyId);
+    // Also call the backend API
+    switchCompany(companyId);
+  };
 
   const getCompanyInitials = (name: string) => {
     return name
@@ -47,7 +54,7 @@ export default function CompanySwitcher() {
         {companies.map((company) => (
           <DropdownMenuItem
             key={company.id}
-            onClick={() => switchCompany(company.id)}
+            onClick={() => handleSwitchCompany(company.id)}
             className="flex items-center"
           >
             <div className="company-avatar bg-primary text-primary-foreground">
