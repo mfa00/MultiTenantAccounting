@@ -3,10 +3,9 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { authenticateUser, hashPassword, getUserWithCompanies } from "./auth";
-import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema } from "@shared/schema";
+import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema, insertUserCompanySchema, users as usersTable, userCompanies as userCompaniesTable, companies as companiesTable } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
-import { users, userCompanies, companies } from "./db/schema";
 
 declare module "express-session" {
   interface SessionData {
@@ -386,15 +385,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (currentUser.globalRole === 'global_administrator') {
         // Get all users in the system
         users = await db.select({
-          id: users.id,
-          username: users.username,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          globalRole: users.globalRole,
-          isActive: users.isActive,
-          createdAt: users.createdAt,
-        }).from(users);
+          id: usersTable.id,
+          username: usersTable.username,
+          email: usersTable.email,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          globalRole: usersTable.globalRole,
+          isActive: usersTable.isActive,
+          createdAt: usersTable.createdAt,
+        }).from(usersTable);
       } else {
         // For non-global admins, show users in current company only
         if (!req.session.currentCompanyId) {
@@ -403,18 +402,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const companyUsers = await db
           .select({
-            id: users.id,
-            username: users.username,
-            email: users.email,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            globalRole: users.globalRole,
-            isActive: users.isActive,
-            createdAt: users.createdAt,
+            id: usersTable.id,
+            username: usersTable.username,
+            email: usersTable.email,
+            firstName: usersTable.firstName,
+            lastName: usersTable.lastName,
+            globalRole: usersTable.globalRole,
+            isActive: usersTable.isActive,
+            createdAt: usersTable.createdAt,
           })
-          .from(users)
-          .innerJoin(userCompanies, eq(users.id, userCompanies.userId))
-          .where(eq(userCompanies.companyId, req.session.currentCompanyId));
+          .from(usersTable)
+          .innerJoin(userCompaniesTable, eq(usersTable.id, userCompaniesTable.userId))
+          .where(eq(userCompaniesTable.companyId, req.session.currentCompanyId));
         
         users = companyUsers;
       }
@@ -477,27 +476,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (currentUser.globalRole === 'global_administrator') {
         userCompanyAssignments = await db
           .select({
-            id: userCompanies.id,
-            userId: userCompanies.userId,
-            companyId: userCompanies.companyId,
-            role: userCompanies.role,
-            isActive: userCompanies.isActive,
+            id: userCompaniesTable.id,
+            userId: userCompaniesTable.userId,
+            companyId: userCompaniesTable.companyId,
+            role: userCompaniesTable.role,
+            isActive: userCompaniesTable.isActive,
             user: {
-              id: users.id,
-              username: users.username,
-              email: users.email,
-              firstName: users.firstName,
-              lastName: users.lastName,
+              id: usersTable.id,
+              username: usersTable.username,
+              email: usersTable.email,
+              firstName: usersTable.firstName,
+              lastName: usersTable.lastName,
             },
             company: {
-              id: companies.id,
-              name: companies.name,
-              code: companies.code,
+              id: companiesTable.id,
+              name: companiesTable.name,
+              code: companiesTable.code,
             }
           })
-          .from(userCompanies)
-          .innerJoin(users, eq(userCompanies.userId, users.id))
-          .innerJoin(companies, eq(userCompanies.companyId, companies.id));
+          .from(userCompaniesTable)
+          .innerJoin(usersTable, eq(userCompaniesTable.userId, usersTable.id))
+          .innerJoin(companiesTable, eq(userCompaniesTable.companyId, companiesTable.id));
       } else {
         // For non-global admins, show assignments for current company only
         if (!req.session.currentCompanyId) {
@@ -506,28 +505,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         userCompanyAssignments = await db
           .select({
-            id: userCompanies.id,
-            userId: userCompanies.userId,
-            companyId: userCompanies.companyId,
-            role: userCompanies.role,
-            isActive: userCompanies.isActive,
+            id: userCompaniesTable.id,
+            userId: userCompaniesTable.userId,
+            companyId: userCompaniesTable.companyId,
+            role: userCompaniesTable.role,
+            isActive: userCompaniesTable.isActive,
             user: {
-              id: users.id,
-              username: users.username,
-              email: users.email,
-              firstName: users.firstName,
-              lastName: users.lastName,
+              id: usersTable.id,
+              username: usersTable.username,
+              email: usersTable.email,
+              firstName: usersTable.firstName,
+              lastName: usersTable.lastName,
             },
             company: {
-              id: companies.id,
-              name: companies.name,
-              code: companies.code,
+              id: companiesTable.id,
+              name: companiesTable.name,
+              code: companiesTable.code,
             }
           })
-          .from(userCompanies)
-          .innerJoin(users, eq(userCompanies.userId, users.id))
-          .innerJoin(companies, eq(userCompanies.companyId, companies.id))
-          .where(eq(userCompanies.companyId, req.session.currentCompanyId));
+          .from(userCompaniesTable)
+          .innerJoin(usersTable, eq(userCompaniesTable.userId, usersTable.id))
+          .innerJoin(companiesTable, eq(userCompaniesTable.companyId, companiesTable.id))
+          .where(eq(userCompaniesTable.companyId, req.session.currentCompanyId));
       }
 
       res.json(userCompanyAssignments);
@@ -539,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/user-companies', requireAuth, async (req, res) => {
     try {
-      const assignmentData = userCompanySchema.parse(req.body);
+      const assignmentData = insertUserCompanySchema.parse(req.body);
       const assignment = await storage.createUserCompany(assignmentData);
       res.json(assignment);
     } catch (error) {
