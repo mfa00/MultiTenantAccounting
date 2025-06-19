@@ -12,7 +12,7 @@ async function initializeDatabase() {
     console.log("📋 Running database setup script...");
     
     // Read and execute the SQL setup file
-    const sqlFilePath = path.join(__dirname, "setup-global-admin.sql");
+    const sqlFilePath = path.join(import.meta.dirname || __dirname, "setup-global-admin.sql");
     const sqlContent = fs.readFileSync(sqlFilePath, "utf8");
     
     // Split by semicolons and execute each statement
@@ -54,7 +54,9 @@ async function initializeDatabase() {
 }
 
 // Run the initialization
-if (require.main === module) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+
+if (isMainModule) {
   initializeDatabase()
     .then(() => {
       console.log("\n🎯 Next Steps:");
