@@ -103,19 +103,13 @@ export default function GlobalAdministration() {
 
   // Queries
   const { data: systemStats, isLoading: statsLoading } = useQuery<SystemStats>({
-    queryKey: ['/api/admin/system-stats'],
+    queryKey: ['/api/global-admin/stats'],
     queryFn: async () => {
-      // Mock data for now - implement real endpoints
-      return {
-        totalCompanies: 15,
-        activeCompanies: 13,
-        totalUsers: 45,
-        activeUsers: 38,
-        totalTransactions: 1247,
-        storageUsed: "2.3 GB",
-        systemUptime: "15 days, 3 hours",
-        lastBackup: "2024-01-20T02:00:00Z",
-      };
+      const response = await fetch('/api/global-admin/stats');
+      if (!response.ok) {
+        throw new Error('Failed to fetch system stats');
+      }
+      return response.json();
     },
   });
 
@@ -176,10 +170,13 @@ export default function GlobalAdministration() {
 
   // Mutations
   const createCompanyMutation = useMutation({
-    mutationFn: (data: CompanyForm) => apiRequest('POST', '/api/admin/companies', data),
+    mutationFn: (data: CompanyForm) => apiRequest('POST', '/api/global-admin/companies', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/companies'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/system-stats'] });
+      console.log('Company created, invalidating queries...');
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
       setIsCompanyDialogOpen(false);
       companyForm.reset();
       toast({
@@ -198,9 +195,12 @@ export default function GlobalAdministration() {
 
   const updateCompanyMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: CompanyForm }) => 
-      apiRequest('PUT', `/api/admin/companies/${id}`, data),
+      apiRequest('PUT', `/api/global-admin/companies/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
       setEditingCompany(null);
       setIsCompanyDialogOpen(false);
       companyForm.reset();
@@ -219,10 +219,12 @@ export default function GlobalAdministration() {
   });
 
   const deleteCompanyMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('DELETE', `/api/admin/companies/${id}`),
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/global-admin/companies/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/companies'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/system-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
       toast({
         title: "Company deleted",
         description: "The company has been successfully deleted.",
@@ -238,10 +240,12 @@ export default function GlobalAdministration() {
   });
 
   const createGlobalUserMutation = useMutation({
-    mutationFn: (data: GlobalUserForm) => apiRequest('POST', '/api/admin/global-users', data),
+    mutationFn: (data: GlobalUserForm) => apiRequest('POST', '/api/global-admin/users', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/global-users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/system-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
       setIsUserDialogOpen(false);
       userForm.reset();
       toast({
@@ -260,9 +264,12 @@ export default function GlobalAdministration() {
 
   const updateGlobalUserMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<GlobalUserForm> }) => 
-      apiRequest('PUT', `/api/admin/global-users/${id}`, data),
+      apiRequest('PUT', `/api/global-admin/users/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/global-users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
       setEditingUser(null);
       setIsUserDialogOpen(false);
       userForm.reset();
@@ -282,9 +289,11 @@ export default function GlobalAdministration() {
 
   const toggleUserStatusMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) => 
-      apiRequest('PUT', `/api/admin/global-users/${id}/status`, { isActive }),
+      apiRequest('PUT', `/api/global-admin/users/${id}/status`, { isActive }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/global-users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
       toast({
         title: "User status updated",
         description: "The user status has been successfully changed.",
@@ -301,9 +310,12 @@ export default function GlobalAdministration() {
 
   const toggleCompanyStatusMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) => 
-      apiRequest('PUT', `/api/admin/companies/${id}/status`, { isActive }),
+      apiRequest('PUT', `/api/global-admin/companies/${id}/status`, { isActive }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
       toast({
         title: "Company status updated",
         description: "The company status has been successfully changed.",
@@ -360,9 +372,14 @@ export default function GlobalAdministration() {
 
   const onUserSubmit = (data: GlobalUserForm) => {
     if (editingUser) {
-      const updateData = { ...data };
-      if (!data.password) delete updateData.password; // Don't update password if empty
-      updateGlobalUserMutation.mutate({ id: editingUser.id, data: updateData });
+      const updateData: Partial<GlobalUserForm> = { ...data };
+      if (!data.password) {
+        // Don't update password if empty
+        const { password, ...dataWithoutPassword } = updateData;
+        updateGlobalUserMutation.mutate({ id: editingUser.id, data: dataWithoutPassword });
+      } else {
+        updateGlobalUserMutation.mutate({ id: editingUser.id, data: updateData });
+      }
     } else {
       createGlobalUserMutation.mutate(data);
     }
@@ -403,6 +420,22 @@ export default function GlobalAdministration() {
           </p>
         </div>
         <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ['/api/global-admin/companies'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
+              toast({
+                title: "Data refreshed",
+                description: "All data has been refreshed from the server.",
+              });
+            }}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export Data
@@ -974,9 +1007,15 @@ export default function GlobalAdministration() {
               >
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button 
+                type="submit" 
+                disabled={createCompanyMutation.isPending || updateCompanyMutation.isPending}
+              >
                 <Save className="w-4 h-4 mr-2" />
-                {editingCompany ? 'Update Company' : 'Create Company'}
+                {(createCompanyMutation.isPending || updateCompanyMutation.isPending) 
+                  ? 'Saving...' 
+                  : editingCompany ? 'Update Company' : 'Create Company'
+                }
               </Button>
             </div>
           </form>
@@ -1095,9 +1134,15 @@ export default function GlobalAdministration() {
               >
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button 
+                type="submit" 
+                disabled={createGlobalUserMutation.isPending || updateGlobalUserMutation.isPending}
+              >
                 <Save className="w-4 h-4 mr-2" />
-                {editingUser ? 'Update User' : 'Create User'}
+                {(createGlobalUserMutation.isPending || updateGlobalUserMutation.isPending) 
+                  ? 'Saving...' 
+                  : editingUser ? 'Update User' : 'Create User'
+                }
               </Button>
             </div>
           </form>
