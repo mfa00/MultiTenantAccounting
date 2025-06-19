@@ -83,7 +83,7 @@ const globalUserSchema = z.object({
   email: z.string().email("Invalid email address"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
   globalRole: z.enum(['global_administrator', 'user']),
 });
 
@@ -413,6 +413,7 @@ export default function GlobalAdministration() {
 
     try {
       if (editingUser) {
+        // For editing, password is optional
         const updateData: Partial<GlobalUserForm> = { ...data };
         if (!data.password || data.password.trim() === '') {
           // Don't update password if empty
@@ -422,7 +423,16 @@ export default function GlobalAdministration() {
           updateGlobalUserMutation.mutate({ id: editingUser.id, data: updateData });
         }
       } else {
-        createGlobalUserMutation.mutate(data);
+        // For creating, password is required
+        if (!data.password || data.password.trim() === '') {
+          toast({
+            title: "Error",
+            description: "Password is required when creating a new user.",
+            variant: "destructive",
+          });
+          return;
+        }
+        createGlobalUserMutation.mutate(data as Required<GlobalUserForm>);
       }
     } catch (error) {
       console.error('User form submission error:', error);
@@ -1178,9 +1188,7 @@ export default function GlobalAdministration() {
               <Input
                 id="password"
                 type="password"
-                {...userForm.register("password", { 
-                  required: !editingUser ? "Password is required" : false 
-                })}
+                {...userForm.register("password")}
                 placeholder="Enter password"
               />
               {userForm.formState.errors.password && (
