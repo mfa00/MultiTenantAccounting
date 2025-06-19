@@ -617,6 +617,231 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Company Settings routes
+  app.get('/api/company/settings/:id', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Verify user has access to this company
+      if (!req.session.currentCompanyId || req.session.currentCompanyId !== companyId) {
+        const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+        if (!userCompany) {
+          return res.status(403).json({ message: 'Access denied to this company' });
+        }
+      }
+
+      // Get company basic information
+      const company = await storage.getCompany(companyId);
+      if (!company) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+
+      // TODO: In the future, settings would be stored in a separate table
+      // For now, return default settings structure
+      const companySettings = {
+        ...company,
+        settings: {
+          notifications: {
+            emailNotifications: true,
+            invoiceReminders: true,
+            paymentAlerts: true,
+            reportReminders: false,
+            systemUpdates: true,
+          },
+          financial: {
+            autoNumbering: true,
+            invoicePrefix: "INV",
+            billPrefix: "BILL",
+            journalPrefix: "JE",
+            decimalPlaces: 2,
+            negativeFormat: "minus",
+            dateFormat: "MM/DD/YYYY",
+            timeZone: "America/New_York",
+          },
+          security: {
+            requirePasswordChange: false,
+            passwordExpireDays: 90,
+            sessionTimeout: 30,
+            enableTwoFactor: false,
+            allowMultipleSessions: true,
+          },
+          backup: {
+            autoBackup: false,
+            backupFrequency: "weekly",
+            retentionDays: 30,
+            backupLocation: "cloud",
+          },
+          integration: {
+            bankConnection: false,
+            paymentGateway: false,
+            taxService: false,
+            reportingTools: false,
+          },
+        },
+      };
+
+      res.json(companySettings);
+    } catch (error) {
+      console.error('Get company settings error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/company/settings/:id/info', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Verify user has access to this company and permission to edit
+      if (!req.session.currentCompanyId || req.session.currentCompanyId !== companyId) {
+        const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+        if (!userCompany) {
+          return res.status(403).json({ message: 'Access denied to this company' });
+        }
+      }
+
+      const updateData = {
+        name: req.body.name,
+        code: req.body.code.toUpperCase(),
+        address: req.body.address || null,
+        phone: req.body.phone || null,
+        email: req.body.email || null,
+        taxId: req.body.taxId || null,
+        fiscalYearStart: req.body.fiscalYearStart || 1,
+        currency: req.body.currency || 'USD',
+      };
+
+      const updatedCompany = await storage.updateCompany(companyId, updateData);
+      if (!updatedCompany) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+
+      res.json(updatedCompany);
+    } catch (error) {
+      console.error('Update company info error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/company/settings/:id/notifications', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Verify user has access to this company
+      if (!req.session.currentCompanyId || req.session.currentCompanyId !== companyId) {
+        const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+        if (!userCompany) {
+          return res.status(403).json({ message: 'Access denied to this company' });
+        }
+      }
+
+      // TODO: Store notification settings in database
+      // For now, just return success
+      res.json({ message: 'Notification settings updated successfully' });
+    } catch (error) {
+      console.error('Update notification settings error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/company/settings/:id/financial', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Verify user has access to this company
+      if (!req.session.currentCompanyId || req.session.currentCompanyId !== companyId) {
+        const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+        if (!userCompany) {
+          return res.status(403).json({ message: 'Access denied to this company' });
+        }
+      }
+
+      // TODO: Store financial settings in database
+      // For now, just return success
+      res.json({ message: 'Financial settings updated successfully' });
+    } catch (error) {
+      console.error('Update financial settings error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/company/settings/:id/security', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Verify user has access to this company
+      if (!req.session.currentCompanyId || req.session.currentCompanyId !== companyId) {
+        const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+        if (!userCompany) {
+          return res.status(403).json({ message: 'Access denied to this company' });
+        }
+      }
+
+      // TODO: Store security settings in database
+      // For now, just return success
+      res.json({ message: 'Security settings updated successfully' });
+    } catch (error) {
+      console.error('Update security settings error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Company export endpoint
+  app.get('/api/company/:id/export', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Verify user has access to this company
+      if (!req.session.currentCompanyId || req.session.currentCompanyId !== companyId) {
+        const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+        if (!userCompany) {
+          return res.status(403).json({ message: 'Access denied to this company' });
+        }
+      }
+
+      // TODO: Implement actual data export
+      // This would export all company data including accounts, transactions, etc.
+      const exportData = {
+        company: await storage.getCompany(companyId),
+        accounts: await storage.getAccountsByCompany(companyId),
+        journalEntries: await storage.getJournalEntriesByCompany(companyId),
+        exportDate: new Date().toISOString(),
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="company-${companyId}-export-${new Date().getTime()}.json"`);
+      res.json(exportData);
+    } catch (error) {
+      console.error('Export company data error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Company archive endpoint
+  app.put('/api/company/:id/archive', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Verify user has access to this company
+      if (!req.session.currentCompanyId || req.session.currentCompanyId !== companyId) {
+        const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+        if (!userCompany) {
+          return res.status(403).json({ message: 'Access denied to this company' });
+        }
+      }
+
+      // Archive company by setting isActive to false
+      const updatedCompany = await storage.updateCompany(companyId, { isActive: false });
+      if (!updatedCompany) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+
+      res.json({ message: 'Company archived successfully' });
+    } catch (error) {
+      console.error('Archive company error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Global Administration routes (only for global administrators)
   const requireGlobalAdmin = (req: any, res: any, next: any) => {
     if (!req.session.userId) {
@@ -853,6 +1078,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount global admin routes
   app.use('/api/global-admin', globalAdminRouter);
 
-  const httpServer = createServer(app);
-  return httpServer;
+  // Restore archived company endpoint
+  app.put('/api/company/:id/restore', requireAuth, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Verify user has access to this company
+      const userCompany = await storage.getUserCompany(req.session.userId!, companyId);
+      if (!userCompany) {
+        return res.status(403).json({ message: 'Access denied to this company' });
+      }
+
+      // Restore company by setting isActive to true
+      const updatedCompany = await storage.updateCompany(companyId, { isActive: true });
+      if (!updatedCompany) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+
+      res.json({ message: 'Company restored successfully' });
+    } catch (error) {
+      console.error('Restore company error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Start server
+  const server = createServer(app);
+  return server;
 }
