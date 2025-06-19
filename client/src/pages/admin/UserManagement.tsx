@@ -756,10 +756,29 @@ export default function UserManagement() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end space-x-2">
-                                <Button variant="ghost" size="sm">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Edit Assignment",
+                                      description: "Edit functionality will be implemented here",
+                                    });
+                                  }}
+                                >
                                   <Edit className="w-4 h-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm" className="text-destructive">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-destructive"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Delete Assignment", 
+                                      description: "Delete functionality will be implemented here",
+                                    });
+                                  }}
+                                >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>

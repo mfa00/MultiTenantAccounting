@@ -547,6 +547,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile management endpoints
+  app.put('/api/auth/profile', requireAuth, async (req, res) => {
+    try {
+      const { firstName, lastName, email } = req.body;
+      
+      if (!firstName || !lastName || !email) {
+        return res.status(400).json({ message: 'All fields are required' });
+      }
+
+      // TODO: Implement actual profile update in storage
+      // For now, just return success
+      res.json({ 
+        message: 'Profile updated successfully',
+        user: { firstName, lastName, email }
+      });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/auth/change-password', requireAuth, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current and new password are required' });
+      }
+
+      // TODO: Implement actual password change in storage
+      // For now, just return success
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Change password error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

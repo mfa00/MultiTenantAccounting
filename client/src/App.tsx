@@ -13,6 +13,7 @@ import JournalEntries from "@/pages/transactions/JournalEntries";
 import Invoices from "@/pages/transactions/Invoices";
 import FinancialStatements from "@/pages/reports/FinancialStatements";
 import UserManagement from "@/pages/admin/UserManagement";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -52,6 +53,7 @@ function Router() {
       <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
       <Route path="/financial-statements" component={() => <ProtectedRoute component={FinancialStatements} />} />
       <Route path="/user-management" component={() => <ProtectedRoute component={UserManagement} />} />
+      <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
       <Route component={NotFound} />
     </Switch>
   );
