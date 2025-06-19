@@ -155,19 +155,42 @@ router.post("/companies", async (req, res) => {
       })
       .returning();
 
-    // Log the activity
-    // const userId = req.user?.id; // TODO: Add user authentication middleware
-    const userId = null; // Placeholder until auth is implemented
-    if (userId) {
-      await db.insert(activityLogs).values({
-        userId,
-        action: "CREATE_COMPANY",
-        resource: "COMPANY",
-        resourceId: newCompany[0].id,
-        details: `Created company: ${name} (${code})`,
-        ipAddress: req.ip,
-        userAgent: req.get("User-Agent") || "Unknown"
-      });
+    // Get the current user ID from session (this should be available from the requireGlobalAdmin middleware)
+    const currentUserId = (req as any).session?.userId;
+    
+    if (currentUserId) {
+      // Automatically assign the global administrator as an administrator of the new company
+      try {
+        await db.insert(userCompanies).values({
+          userId: currentUserId,
+          companyId: newCompany[0].id,
+          role: 'administrator',
+          isActive: true
+        });
+        
+        console.log(`Auto-assigned global admin (user ${currentUserId}) to company ${newCompany[0].id} as administrator`);
+      } catch (assignmentError) {
+        console.error('Failed to auto-assign user to company:', assignmentError);
+        // Don't fail the company creation if assignment fails
+      }
+
+      // Log the activity
+      try {
+        await db.insert(activityLogs).values({
+          userId: currentUserId,
+          action: "CREATE_COMPANY",
+          resource: "COMPANY",
+          resourceId: newCompany[0].id,
+          details: `Created company: ${name} (${code})`,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent") || "Unknown"
+        });
+      } catch (logError) {
+        console.error('Failed to log activity:', logError);
+        // Don't fail the operation if logging fails
+      }
+    } else {
+      console.warn('No user ID in session during company creation');
     }
 
     res.status(201).json(newCompany[0]);

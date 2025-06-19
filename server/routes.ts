@@ -1191,8 +1191,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mount global admin routes
-  app.use('/api/global-admin', globalAdminRouter);
+  // Mount global admin routes with authentication
+  app.use('/api/global-admin', requireGlobalAdmin, globalAdminRouter);
 
   // Restore archived company endpoint
   app.put('/api/company/:id/restore', requireAuth, async (req, res) => {
