@@ -6,11 +6,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { useLocation } from "wouter";
+import { triggerPageAction } from "@/hooks/usePageActions";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TopBar() {
   const { user, logout } = useAuth();
   const { currentCompany } = useCompany();
   const [location, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const getUserInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -35,28 +38,61 @@ export default function TopBar() {
     return role.charAt(0).toUpperCase() + role.slice(1) + ' Role';
   };
 
+  const getPageTitle = () => {
+    if (location.includes('/dashboard')) return 'Dashboard';
+    if (location.includes('/chart-of-accounts')) return 'Chart of Accounts';
+    if (location.includes('/general-ledger')) return 'General Ledger';
+    if (location.includes('/journal-entries')) return 'Journal Entries';
+    if (location.includes('/invoices')) return 'Invoices';
+    if (location.includes('/financial-statements')) return 'Financial Statements';
+    if (location.includes('/user-management')) return 'User Management';
+    if (location.includes('/role-management')) return 'Role Management';
+    if (location.includes('/profile')) return 'Profile';
+    return 'Dashboard';
+  };
+
   const handleNewEntry = () => {
-    // Context-aware new entry based on current page
+    let actionTriggered = false;
+
+    // Try to trigger the appropriate action based on current page
     if (location.includes('/journal-entries')) {
-      setLocation('/journal-entries?new=true');
+      actionTriggered = triggerPageAction('newJournalEntry');
     } else if (location.includes('/invoices')) {
-      setLocation('/invoices?new=true');
+      actionTriggered = triggerPageAction('newInvoice');
     } else if (location.includes('/chart-of-accounts')) {
-      setLocation('/chart-of-accounts?new=true');
+      actionTriggered = triggerPageAction('newAccount');
     } else if (location.includes('/user-management')) {
-      // For user management, we'll just show a toast since the UI already has dialog buttons
-      return;
-    } else {
-      // Default to journal entries for new transactions
-      setLocation('/journal-entries?new=true');
+      actionTriggered = triggerPageAction('newUser');
+    } else if (location.includes('/role-management')) {
+      actionTriggered = triggerPageAction('newRole');
     }
+
+    // If no action was triggered or we're on a different page, navigate to journal entries
+    if (!actionTriggered) {
+      if (location !== '/journal-entries') {
+        setLocation('/journal-entries');
+        toast({
+          title: "Redirecting",
+          description: "Taking you to Journal Entries to create a new entry.",
+        });
+      }
+    }
+  };
+
+  const getNewEntryText = () => {
+    if (location.includes('/journal-entries')) return 'New Entry';
+    if (location.includes('/invoices')) return 'New Invoice';
+    if (location.includes('/chart-of-accounts')) return 'New Account';
+    if (location.includes('/user-management')) return 'New User';
+    if (location.includes('/role-management')) return 'New Role';
+    return 'New Entry';
   };
 
   return (
     <header className="bg-card shadow-sm border-b border-border px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center">
-          <h2 className="text-xl font-semibold text-foreground">Dashboard</h2>
+          <h2 className="text-xl font-semibold text-foreground">{getPageTitle()}</h2>
           {currentCompany && (
             <Badge className={`ml-4 ${getRoleColor(currentCompany.role)}`}>
               {formatRole(currentCompany.role)}
@@ -71,7 +107,7 @@ export default function TopBar() {
             onClick={handleNewEntry}
           >
             <Plus className="w-4 h-4 mr-2" />
-            New Entry
+            {getNewEntryText()}
           </Button>
           
           {/* User Menu */}

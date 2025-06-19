@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { usePageActions } from "@/hooks/usePageActions";
 
 interface Customer {
   id: number;
@@ -56,6 +57,7 @@ export default function Invoices() {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { registerTrigger } = usePageActions();
 
   const { data: invoices, isLoading: invoicesLoading } = useQuery<Invoice[]>({
     queryKey: ['/api/invoices'],
@@ -180,6 +182,13 @@ export default function Invoices() {
   const formatStatus = (status: string) => {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
+
+  // Register the action for this page
+  useEffect(() => {
+    registerTrigger('newInvoice', () => {
+      setIsDialogOpen(true);
+    });
+  }, [registerTrigger]);
 
   if (!currentCompany) {
     return (

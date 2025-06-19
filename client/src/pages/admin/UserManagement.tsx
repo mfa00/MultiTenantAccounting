@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getRolePermissions, getRoleDescription, canAssignRole, type Role } from "@shared/permissions";
+import { usePageActions } from "@/hooks/usePageActions";
 
 interface User {
   id: number;
@@ -113,6 +114,14 @@ export default function UserManagement() {
   const { toast } = useToast();
   const { currentRole, canViewUsers, canCreateUsers, canAssignRoles } = usePermissions();
   const queryClient = useQueryClient();
+  const { registerTrigger } = usePageActions();
+
+  // Register the action for this page
+  useEffect(() => {
+    registerTrigger('newUser', () => {
+      setIsUserDialogOpen(true);
+    });
+  }, [registerTrigger]);
 
   // Check if current user can manage users
   const canManageUsers = canViewUsers();

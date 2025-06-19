@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { usePageActions } from "@/hooks/usePageActions";
 
 interface Account {
   id: number;
@@ -72,6 +73,14 @@ export default function JournalEntries() {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { registerTrigger } = usePageActions();
+
+  // Register the action for this page
+  useEffect(() => {
+    registerTrigger('newJournalEntry', () => {
+      setIsDialogOpen(true);
+    });
+  }, [registerTrigger]);
 
   const { data: journalEntries, isLoading: entriesLoading } = useQuery<JournalEntry[]>({
     queryKey: ['/api/journal-entries'],

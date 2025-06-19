@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { usePageActions } from "@/hooks/usePageActions";
 
 interface Account {
   id: number;
@@ -72,6 +73,7 @@ export default function ChartOfAccounts() {
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { registerTrigger } = usePageActions();
 
   const { data: accounts, isLoading } = useQuery<Account[]>({
     queryKey: ['/api/accounts'],
@@ -132,6 +134,13 @@ export default function ChartOfAccounts() {
   const formatType = (type: string) => {
     return type.charAt(0).toUpperCase() + type.slice(1);
   };
+
+  // Register the action for this page
+  useEffect(() => {
+    registerTrigger('newAccount', () => {
+      setIsDialogOpen(true);
+    });
+  }, [registerTrigger]);
 
   if (!currentCompany) {
     return (
