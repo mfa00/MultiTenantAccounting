@@ -6,6 +6,7 @@ import {
   users, companies, userCompanies, accounts, activityLogs,
   type User, type Company, type UserCompany 
 } from "../../shared/schema";
+import { activityLogger, ACTIVITY_ACTIONS, RESOURCE_TYPES } from "../services/activity-logger";
 
 const router = express.Router();
 
@@ -169,26 +170,65 @@ router.post("/companies", async (req, res) => {
         });
         
         console.log(`Auto-assigned global admin (user ${currentUserId}) to company ${newCompany[0].id} as administrator`);
+        
+        // Log the assignment activity
+        await activityLogger.logCRUD(
+          ACTIVITY_ACTIONS.USER_ASSIGN,
+          RESOURCE_TYPES.USER_COMPANY,
+          {
+            userId: currentUserId,
+            companyId: newCompany[0].id,
+            ipAddress: req.ip,
+            userAgent: req.get("User-Agent")
+          },
+          undefined,
+          undefined,
+          {
+            userId: currentUserId,
+            companyId: newCompany[0].id,
+            role: 'administrator',
+            autoAssigned: true
+          }
+        );
       } catch (assignmentError) {
         console.error('Failed to auto-assign user to company:', assignmentError);
-        // Don't fail the company creation if assignment fails
+        await activityLogger.logError(
+          ACTIVITY_ACTIONS.USER_ASSIGN,
+          RESOURCE_TYPES.USER_COMPANY,
+          {
+            userId: currentUserId,
+            companyId: newCompany[0].id,
+            ipAddress: req.ip,
+            userAgent: req.get("User-Agent")
+          },
+          assignmentError as Error,
+          newCompany[0].id,
+          { autoAssignment: true }
+        );
       }
 
-      // Log the activity
-      try {
-        await db.insert(activityLogs).values({
+      // Log the company creation activity
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.COMPANY_CREATE,
+        RESOURCE_TYPES.COMPANY,
+        {
           userId: currentUserId,
-          action: "CREATE_COMPANY",
-          resource: "COMPANY",
-          resourceId: newCompany[0].id,
-          details: `Created company: ${name} (${code})`,
           ipAddress: req.ip,
-          userAgent: req.get("User-Agent") || "Unknown"
-        });
-      } catch (logError) {
-        console.error('Failed to log activity:', logError);
-        // Don't fail the operation if logging fails
-      }
+          userAgent: req.get("User-Agent")
+        },
+        newCompany[0].id,
+        undefined,
+        {
+          name,
+          code,
+          address,
+          phone,
+          email,
+          taxId,
+          fiscalYearStart,
+          currency
+        }
+      );
     } else {
       console.warn('No user ID in session during company creation');
     }

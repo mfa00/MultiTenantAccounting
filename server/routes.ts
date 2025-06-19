@@ -7,7 +7,9 @@ import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJourn
 import { eq, desc, sql, and } from "drizzle-orm";
 import { db } from "./db";
 import globalAdminRouter from "./api/global-admin";
+import activityLogsRouter from "./api/activity-logs";
 import { apiRequest } from "../client/src/lib/queryClient";
+import { activityLogger, ACTIVITY_ACTIONS, RESOURCE_TYPES } from "./services/activity-logger";
 
 declare module "express-session" {
   interface SessionData {
@@ -88,6 +90,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userWithCompanies && userWithCompanies.companies.length > 0) {
         req.session.currentCompanyId = userWithCompanies.companies[0].id;
       }
+
+      // Log successful login
+      await activityLogger.logAuth(
+        ACTIVITY_ACTIONS.LOGIN,
+        {
+          userId: user.id,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        { 
+          username: user.username,
+          companiesCount: userWithCompanies?.companies.length || 0
+        }
+      );
 
       res.json(userWithCompanies);
     } catch (error) {
@@ -823,6 +839,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Company settings not found' });
       }
 
+      // Log notification settings update
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.SETTINGS_UPDATE_NOTIFICATIONS,
+        RESOURCE_TYPES.SETTINGS,
+        {
+          userId: req.session.userId!,
+          companyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        companyId,
+        undefined,
+        updateData
+      );
+
       res.json({ message: 'Notification settings updated successfully', settings: updatedSettings });
     } catch (error) {
       console.error('Update notification settings error:', error);
@@ -860,6 +891,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Company settings not found' });
       }
 
+      // Log financial settings update
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.SETTINGS_UPDATE_FINANCIAL,
+        RESOURCE_TYPES.SETTINGS,
+        {
+          userId: req.session.userId!,
+          companyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        companyId,
+        undefined,
+        updateData
+      );
+
       res.json({ message: 'Financial settings updated successfully', settings: updatedSettings });
     } catch (error) {
       console.error('Update financial settings error:', error);
@@ -894,6 +940,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Company settings not found' });
       }
 
+      // Log security settings update
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.SETTINGS_UPDATE_SECURITY,
+        RESOURCE_TYPES.SETTINGS,
+        {
+          userId: req.session.userId!,
+          companyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        companyId,
+        undefined,
+        updateData
+      );
+
       res.json({ message: 'Security settings updated successfully', settings: updatedSettings });
     } catch (error) {
       console.error('Update security settings error:', error);
@@ -923,6 +984,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         exportDate: new Date().toISOString(),
       };
 
+      // Log data export
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.DATA_EXPORT,
+        RESOURCE_TYPES.COMPANY,
+        {
+          userId: req.session.userId!,
+          companyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        companyId,
+        undefined,
+        { exportType: 'full', recordCount: Object.keys(exportData).length }
+      );
+
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="company-${companyId}-export-${new Date().getTime()}.json"`);
       res.json(exportData);
@@ -950,6 +1026,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updatedCompany) {
         return res.status(404).json({ message: 'Company not found' });
       }
+
+      // Log company archive
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.COMPANY_ARCHIVE,
+        RESOURCE_TYPES.COMPANY,
+        {
+          userId: req.session.userId!,
+          companyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        companyId,
+        { isActive: true },
+        { isActive: false }
+      );
 
       res.json({ message: 'Company archived successfully' });
     } catch (error) {
@@ -1193,6 +1284,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount global admin routes with authentication
   app.use('/api/global-admin', requireGlobalAdmin, globalAdminRouter);
+  
+  // Mount activity logs routes with authentication
+  app.use('/api/activity-logs', requireAuth, activityLogsRouter);
 
   // Restore archived company endpoint
   app.put('/api/company/:id/restore', requireAuth, async (req, res) => {

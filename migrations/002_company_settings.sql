@@ -49,6 +49,10 @@ CREATE TABLE IF NOT EXISTS company_settings (
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_company_settings_company_id ON company_settings(company_id);
 
+-- Drop existing trigger and function if they exist
+DROP TRIGGER IF EXISTS trigger_update_company_settings_updated_at ON company_settings;
+DROP FUNCTION IF EXISTS update_company_settings_updated_at();
+
 -- Create trigger to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_company_settings_updated_at()
 RETURNS TRIGGER AS $$

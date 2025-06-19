@@ -135,12 +135,51 @@ export default function GlobalAdministration() {
     },
   });
 
-  const { data: activityLogs = [], isLoading: logsLoading } = useQuery<ActivityLog[]>({
-    queryKey: ['/api/global-admin/activity'],
+  // Activity logs state
+  const [activityFilters, setActivityFilters] = useState({
+    page: 1,
+    limit: 50,
+    action: '',
+    resource: '',
+    userId: '',
+    startDate: '',
+    endDate: '',
+    search: ''
+  });
+
+  const { data: activityData, isLoading: logsLoading, refetch: refetchLogs } = useQuery({
+    queryKey: ['/api/activity-logs', activityFilters],
     queryFn: async () => {
-      const response = await fetch('/api/global-admin/activity');
+      const params = new URLSearchParams();
+      Object.entries(activityFilters).forEach(([key, value]) => {
+        if (value) params.append(key, value.toString());
+      });
+      
+      const response = await fetch(`/api/activity-logs?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch activity logs');
+      }
+      return response.json();
+    },
+  });
+
+  const { data: activityFiltersData } = useQuery({
+    queryKey: ['/api/activity-logs/filters'],
+    queryFn: async () => {
+      const response = await fetch('/api/activity-logs/filters');
+      if (!response.ok) {
+        throw new Error('Failed to fetch filter options');
+      }
+      return response.json();
+    },
+  });
+
+  const { data: activitySummary } = useQuery({
+    queryKey: ['/api/activity-logs/summary'],
+    queryFn: async () => {
+      const response = await fetch('/api/activity-logs/summary?days=7');
+      if (!response.ok) {
+        throw new Error('Failed to fetch activity summary');
       }
       return response.json();
     },
@@ -862,48 +901,353 @@ export default function GlobalAdministration() {
               <h3 className="text-lg font-semibold">System Activity Logs</h3>
               <p className="text-muted-foreground">Monitor all system activities and user actions</p>
             </div>
-            <Button variant="outline">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={() => refetchLogs()}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+              <Button variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Export Logs
+              </Button>
+            </div>
           </div>
 
+          {/* Activity Summary Cards */}
+          {activitySummary?.data && (
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Actions</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {activitySummary.data.actionCounts?.reduce((sum: number, item: any) => sum + item.count, 0) || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Last {activitySummary.data.period}
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Top Action</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {activitySummary.data.actionCounts?.[0]?.action || 'N/A'}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {activitySummary.data.actionCounts?.[0]?.count || 0} times
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Resources</CardTitle>
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {activitySummary.data.resourceCounts?.length || 0}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Types affected
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Daily Average</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {Math.round((activitySummary.data.dailyCounts?.reduce((sum: number, item: any) => sum + item.count, 0) || 0) / (activitySummary.data.dailyCounts?.length || 1))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Actions per day
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Filters */}
           <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Timestamp</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Resource</TableHead>
-                    <TableHead>Details</TableHead>
-                    <TableHead>IP Address</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activityLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>{formatDate(log.timestamp)}</TableCell>
-                      <TableCell className="font-medium">{log.userName}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{log.action}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{log.resource}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {log.details}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {log.ipAddress}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <CardHeader>
+              <CardTitle className="text-base">Filters</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-6">
+                <div>
+                  <Label htmlFor="search">Search</Label>
+                  <Input
+                    id="search"
+                    placeholder="Search logs..."
+                    value={activityFilters.search}
+                    onChange={(e) => setActivityFilters(prev => ({ ...prev, search: e.target.value, page: 1 }))}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="action">Action</Label>
+                  <Select
+                    value={activityFilters.action}
+                    onValueChange={(value) => setActivityFilters(prev => ({ ...prev, action: value, page: 1 }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All actions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All actions</SelectItem>
+                      {activityFiltersData?.data?.actions?.map((action: any) => (
+                        <SelectItem key={action.value} value={action.value}>
+                          {action.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="resource">Resource</Label>
+                  <Select
+                    value={activityFilters.resource}
+                    onValueChange={(value) => setActivityFilters(prev => ({ ...prev, resource: value, page: 1 }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All resources" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All resources</SelectItem>
+                      {activityFiltersData?.data?.resources?.map((resource: any) => (
+                        <SelectItem key={resource.value} value={resource.value}>
+                          {resource.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="user">User</Label>
+                  <Select
+                    value={activityFilters.userId}
+                    onValueChange={(value) => setActivityFilters(prev => ({ ...prev, userId: value, page: 1 }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All users" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All users</SelectItem>
+                      {activityFiltersData?.data?.users?.map((user: any) => (
+                        <SelectItem key={user.value} value={user.value.toString()}>
+                          {user.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={activityFilters.startDate}
+                    onChange={(e) => setActivityFilters(prev => ({ ...prev, startDate: e.target.value, page: 1 }))}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={activityFilters.endDate}
+                    onChange={(e) => setActivityFilters(prev => ({ ...prev, endDate: e.target.value, page: 1 }))}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setActivityFilters({
+                    page: 1,
+                    limit: 50,
+                    action: '',
+                    resource: '',
+                    userId: '',
+                    startDate: '',
+                    endDate: '',
+                    search: ''
+                  })}
+                >
+                  Clear Filters
+                </Button>
+                
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="limit">Per page:</Label>
+                  <Select
+                    value={activityFilters.limit.toString()}
+                    onValueChange={(value) => setActivityFilters(prev => ({ ...prev, limit: parseInt(value), page: 1 }))}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Activity Logs Table */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Activity Logs</CardTitle>
+                {activityData?.data?.pagination && (
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((activityData.data.pagination.currentPage - 1) * activityData.data.pagination.limit) + 1} to {Math.min(activityData.data.pagination.currentPage * activityData.data.pagination.limit, activityData.data.pagination.totalCount)} of {activityData.data.pagination.totalCount} entries
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[600px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Resource</TableHead>
+                      <TableHead>Details</TableHead>
+                      <TableHead>IP Address</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {logsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2" />
+                          Loading activity logs...
+                        </TableCell>
+                      </TableRow>
+                    ) : activityData?.data?.logs?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          No activity logs found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      activityData?.data?.logs?.map((log: any) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="font-mono text-xs">
+                            {log.formattedTimestamp}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{log.user?.name}</div>
+                              <div className="text-xs text-muted-foreground">@{log.user?.username}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {log.actionDisplayName}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-xs">
+                              {log.resourceDisplayName}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="space-y-1">
+                              {log.details?.changes?.new && (
+                                <div className="text-xs">
+                                  <strong>Changes:</strong>
+                                  <pre className="text-xs bg-muted p-1 rounded mt-1 overflow-auto max-h-20">
+                                    {JSON.stringify(log.details.changes.new, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                              {log.details?.error && (
+                                <div className="text-xs text-red-600">
+                                  <strong>Error:</strong> {log.details.error}
+                                </div>
+                              )}
+                              {log.details?.metadata && Object.keys(log.details.metadata).length > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                  <strong>Metadata:</strong> {JSON.stringify(log.details.metadata)}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {log.ipAddress || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {log.details?.success !== false ? (
+                              <Badge className="bg-green-100 text-green-800 text-xs">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Success
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-red-100 text-red-800 text-xs">
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Failed
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Pagination */}
+          {activityData?.data?.pagination && activityData.data.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Page {activityData.data.pagination.currentPage} of {activityData.data.pagination.totalPages}
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!activityData.data.pagination.hasPrevPage}
+                  onClick={() => setActivityFilters(prev => ({ ...prev, page: prev.page - 1 }))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!activityData.data.pagination.hasNextPage}
+                  onClick={() => setActivityFilters(prev => ({ ...prev, page: prev.page + 1 }))}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* System Health Tab */}
