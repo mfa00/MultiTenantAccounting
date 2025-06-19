@@ -30,7 +30,7 @@ interface Company {
   id: number;
   name: string;
   code: string;
-  description: string | null;
+  address: string | null;
   isActive: boolean;
   createdAt: string;
   userCount: number;
@@ -330,12 +330,33 @@ export default function GlobalAdministration() {
     },
   });
 
+  const deleteGlobalUserMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/global-admin/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-admin/activity'] });
+      toast({
+        title: "User deleted",
+        description: "The user has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Helper functions
   const handleEditCompany = (company: Company) => {
     setEditingCompany(company);
     companyForm.setValue("name", company.name);
     companyForm.setValue("code", company.code);
-    companyForm.setValue("description", company.description || "");
+    companyForm.setValue("description", company.address || "");
     setIsCompanyDialogOpen(true);
   };
 
@@ -363,25 +384,53 @@ export default function GlobalAdministration() {
   };
 
   const onCompanySubmit = (data: CompanyForm) => {
-    if (editingCompany) {
-      updateCompanyMutation.mutate({ id: editingCompany.id, data });
-    } else {
-      createCompanyMutation.mutate(data);
+    // Prevent form submission if already processing
+    if (createCompanyMutation.isPending || updateCompanyMutation.isPending) {
+      return;
+    }
+
+    try {
+      if (editingCompany) {
+        updateCompanyMutation.mutate({ id: editingCompany.id, data });
+      } else {
+        createCompanyMutation.mutate(data);
+      }
+    } catch (error) {
+      console.error('Form submission error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit form. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const onUserSubmit = (data: GlobalUserForm) => {
-    if (editingUser) {
-      const updateData: Partial<GlobalUserForm> = { ...data };
-      if (!data.password) {
-        // Don't update password if empty
-        const { password, ...dataWithoutPassword } = updateData;
-        updateGlobalUserMutation.mutate({ id: editingUser.id, data: dataWithoutPassword });
+    // Prevent form submission if already processing
+    if (createGlobalUserMutation.isPending || updateGlobalUserMutation.isPending) {
+      return;
+    }
+
+    try {
+      if (editingUser) {
+        const updateData: Partial<GlobalUserForm> = { ...data };
+        if (!data.password || data.password.trim() === '') {
+          // Don't update password if empty
+          const { password, ...dataWithoutPassword } = updateData;
+          updateGlobalUserMutation.mutate({ id: editingUser.id, data: dataWithoutPassword });
+        } else {
+          updateGlobalUserMutation.mutate({ id: editingUser.id, data: updateData });
+        }
       } else {
-        updateGlobalUserMutation.mutate({ id: editingUser.id, data: updateData });
+        createGlobalUserMutation.mutate(data);
       }
-    } else {
-      createGlobalUserMutation.mutate(data);
+    } catch (error) {
+      console.error('User form submission error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit user form. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -600,9 +649,9 @@ export default function GlobalAdministration() {
                       <TableCell>
                         <div>
                           <div className="font-medium">{company.name}</div>
-                          {company.description && (
+                          {company.address && (
                             <div className="text-sm text-muted-foreground">
-                              {company.description}
+                              {company.address}
                             </div>
                           )}
                         </div>
@@ -738,6 +787,7 @@ export default function GlobalAdministration() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEditUser(user)}
+                            disabled={updateGlobalUserMutation.isPending}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -748,6 +798,7 @@ export default function GlobalAdministration() {
                               id: user.id,
                               isActive: !user.isActive
                             })}
+                            disabled={toggleUserStatusMutation.isPending}
                           >
                             {user.isActive ? (
                               <XCircle className="w-4 h-4" />
@@ -755,6 +806,35 @@ export default function GlobalAdministration() {
                               <CheckCircle className="w-4 h-4" />
                             )}
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-destructive"
+                                disabled={deleteGlobalUserMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{user.firstName} {user.lastName}"? This action cannot be undone and will remove all associated data.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteGlobalUserMutation.mutate(user.id)}
+                                  className="bg-destructive text-destructive-foreground"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>

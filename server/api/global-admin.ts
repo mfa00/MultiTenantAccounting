@@ -341,4 +341,246 @@ router.get("/activity", async (req, res) => {
   }
 });
 
+// Update company
+router.put("/companies/:id", async (req, res) => {
+  try {
+    const companyId = parseInt(req.params.id);
+    const { name, code, address } = req.body;
+
+    if (!name || !code) {
+      return res.status(400).json({ error: "Name and code are required" });
+    }
+
+    // Check if code already exists (excluding current company)
+    const existingCompany = await db
+      .select()
+      .from(companies)
+      .where(and(
+        eq(companies.code, code.toUpperCase()),
+        sql`id != ${companyId}`
+      ))
+      .limit(1);
+
+    if (existingCompany.length > 0) {
+      return res.status(400).json({ error: "Company code already exists" });
+    }
+
+    const updatedCompany = await db
+      .update(companies)
+      .set({
+        name,
+        code: code.toUpperCase(),
+        address: address || null
+      })
+      .where(eq(companies.id, companyId))
+      .returning();
+
+    if (updatedCompany.length === 0) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    res.json(updatedCompany[0]);
+  } catch (error) {
+    console.error("Error updating company:", error);
+    res.status(500).json({ error: "Failed to update company" });
+  }
+});
+
+// Delete company
+router.delete("/companies/:id", async (req, res) => {
+  try {
+    const companyId = parseInt(req.params.id);
+
+    // Check if company has users assigned
+    const assignedUsers = await db
+      .select()
+      .from(userCompanies)
+      .where(eq(userCompanies.companyId, companyId))
+      .limit(1);
+
+    if (assignedUsers.length > 0) {
+      return res.status(400).json({ 
+        error: "Cannot delete company with assigned users. Please remove all user assignments first." 
+      });
+    }
+
+    // Check if company has accounts or transactions
+    const hasAccounts = await db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.companyId, companyId))
+      .limit(1);
+
+    if (hasAccounts.length > 0) {
+      return res.status(400).json({ 
+        error: "Cannot delete company with existing accounts. Please archive the company instead." 
+      });
+    }
+
+    const deletedCompany = await db
+      .delete(companies)
+      .where(eq(companies.id, companyId))
+      .returning();
+
+    if (deletedCompany.length === 0) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    res.json({ message: "Company deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting company:", error);
+    res.status(500).json({ error: "Failed to delete company" });
+  }
+});
+
+// Update user
+router.put("/users/:id", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { username, email, firstName, lastName, globalRole, password } = req.body;
+
+    if (!username || !email || !firstName || !lastName || !globalRole) {
+      return res.status(400).json({ error: "All fields except password are required" });
+    }
+
+    // Check if username/email already exists (excluding current user)
+    const existingUser = await db
+      .select()
+      .from(users)
+      .where(and(
+        or(
+          eq(users.username, username),
+          eq(users.email, email)
+        ),
+        sql`id != ${userId}`
+      ))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      return res.status(400).json({ error: "Username or email already exists" });
+    }
+
+    const updateData: any = {
+      username,
+      email,
+      firstName,
+      lastName,
+      globalRole
+    };
+
+    // Only update password if provided
+    if (password && password.trim() !== '') {
+      const bcrypt = await import('bcrypt');
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (updatedUser.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Remove password from response
+    const { password: _, ...userResponse } = updatedUser[0];
+    res.json(userResponse);
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ error: "Failed to update user" });
+  }
+});
+
+// Delete user
+router.delete("/users/:id", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+
+    // Check if user has company assignments
+    const assignments = await db
+      .select()
+      .from(userCompanies)
+      .where(eq(userCompanies.userId, userId))
+      .limit(1);
+
+    if (assignments.length > 0) {
+      return res.status(400).json({ 
+        error: "Cannot delete user with company assignments. Please remove all assignments first." 
+      });
+    }
+
+    const deletedUser = await db
+      .delete(users)
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (deletedUser.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
+// Update user status
+router.put("/users/:id/status", async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ error: "isActive must be a boolean" });
+    }
+
+    const updatedUser = await db
+      .update(users)
+      .set({ isActive })
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (updatedUser.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Remove password from response
+    const { password: _, ...userResponse } = updatedUser[0];
+    res.json(userResponse);
+  } catch (error) {
+    console.error("Error updating user status:", error);
+    res.status(500).json({ error: "Failed to update user status" });
+  }
+});
+
+// Update company status
+router.put("/companies/:id/status", async (req, res) => {
+  try {
+    const companyId = parseInt(req.params.id);
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ error: "isActive must be a boolean" });
+    }
+
+    const updatedCompany = await db
+      .update(companies)
+      .set({ isActive })
+      .where(eq(companies.id, companyId))
+      .returning();
+
+    if (updatedCompany.length === 0) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    res.json(updatedCompany[0]);
+  } catch (error) {
+    console.error("Error updating company status:", error);
+    res.status(500).json({ error: "Failed to update company status" });
+  }
+});
+
 export default router; 
