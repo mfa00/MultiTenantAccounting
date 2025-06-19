@@ -375,18 +375,6 @@ export default function Settings() {
             <Building2 className="w-3 h-3 mr-1" />
             {currentCompany.code}
           </Badge>
-          
-          {currentCompany?.isActive ? (
-            <Badge className="bg-green-100 text-green-800">
-              <CheckCircle className="w-3 h-3 mr-1" />
-              Active
-            </Badge>
-          ) : (
-            <Badge variant="destructive">
-              <AlertTriangle className="w-3 h-3 mr-1" />
-              Inactive
-            </Badge>
-          )}
         </div>
       </div>
 

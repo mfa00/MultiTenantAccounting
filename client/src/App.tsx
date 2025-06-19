@@ -14,6 +14,7 @@ import Invoices from "@/pages/transactions/Invoices";
 import FinancialStatements from "@/pages/reports/FinancialStatements";
 import UserManagement from "@/pages/admin/UserManagement";
 import Profile from "@/pages/Profile";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 import RoleManagement from "@/pages/admin/RoleManagement";
 import GlobalAdministration from "@/pages/admin/GlobalAdministration";
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/user-management" component={() => <ProtectedRoute component={UserManagement} />} />
       <Route path="/role-management" component={() => <ProtectedRoute component={RoleManagement} />} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
+      <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
       <Route path="/global-administration" component={() => <ProtectedRoute component={GlobalAdministration} />} />
       <Route component={NotFound} />
     </Switch>
