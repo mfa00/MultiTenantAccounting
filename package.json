@@ -14,7 +14,10 @@
     "db:status": "tsx --env-file=.env scripts/db-status.ts",
     "db:health": "tsx --env-file=.env scripts/db-health.ts",
     "db:validate": "tsx --env-file=.env scripts/validate-schema.ts",
-    "db:test": "tsx --env-file=.env scripts/test-db-connection.ts"
+    "db:test": "tsx --env-file=.env scripts/test-db-connection.ts",
+    "db:init": "tsx --env-file=.env scripts/init-database.ts",
+    "db:test-queries": "tsx --env-file=.env scripts/run-test-queries.ts",
+    "db:quick-check": "tsx --env-file=.env scripts/run-test-queries.ts --quick"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
