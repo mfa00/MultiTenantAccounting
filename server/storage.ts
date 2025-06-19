@@ -8,7 +8,7 @@ import {
   type Invoice, type InsertInvoice, type Bill, type InsertBill
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -70,6 +70,16 @@ export interface IStorage {
   getBillsByCompany(companyId: number): Promise<Bill[]>;
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: number, bill: Partial<InsertBill>): Promise<Bill | undefined>;
+
+  // Global admin methods
+  getAllCompanies(): Promise<Company[]>;
+  getAllCompaniesWithStats(): Promise<Company[]>;
+  getAllUsers(): Promise<User[]>;
+  getAllUsersWithStats(): Promise<GlobalUser[]>;
+  getTransactionCount(): Promise<number>;
+  companyHasData(companyId: number): Promise<boolean>;
+  getActivityLogs(limit: number): Promise<ActivityLog[]>;
+  logActivity(userId: number, action: string, resource: string, details?: string, ipAddress?: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -322,6 +332,119 @@ export class DatabaseStorage implements IStorage {
   async updateBill(id: number, updateBill: Partial<InsertBill>): Promise<Bill | undefined> {
     const [bill] = await db.update(bills).set(updateBill).where(eq(bills.id, id)).returning();
     return bill || undefined;
+  }
+
+  // Global admin methods
+  async getAllCompanies(): Promise<Company[]> {
+    return await db
+      .select()
+      .from(companies)
+      .where(eq(companies.isActive, true))
+      .orderBy(asc(companies.name));
+  }
+
+  async getAllCompaniesWithStats(): Promise<Company[]> {
+    const companies = await this.getAllCompanies();
+    
+    // Add user count and last activity for each company
+    const companiesWithStats = await Promise.all(
+      companies.map(async (company) => {
+        const userCount = await db
+          .select({ count: sql`COUNT(*)` })
+          .from(userCompanies)
+          .where(eq(userCompanies.companyId, company.id));
+        
+        // Get last activity (this would be from a real activity log table)
+        const lastActivity = null; // Implement based on your activity tracking
+        
+        return {
+          ...company,
+          userCount: userCount[0]?.count || 0,
+          lastActivity,
+        };
+      })
+    );
+    
+    return companiesWithStats;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async getAllUsersWithStats(): Promise<GlobalUser[]> {
+    const users = await this.getAllUsers();
+    
+    const usersWithStats = await Promise.all(
+      users.map(async (user) => {
+        const companiesCount = await db
+          .select({ count: sql`COUNT(*)` })
+          .from(userCompanies)
+          .where(eq(userCompanies.userId, user.id));
+        
+        return {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          globalRole: user.globalRole,
+          isActive: user.isActive,
+          createdAt: user.createdAt?.toISOString() || '',
+          lastLogin: null, // Would come from session tracking
+          companiesCount: companiesCount[0]?.count || 0,
+        };
+      })
+    );
+    
+    return usersWithStats;
+  }
+
+  async getTransactionCount(): Promise<number> {
+    const result = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(journalEntries);
+    
+    return result[0]?.count || 0;
+  }
+
+  async companyHasData(companyId: number): Promise<boolean> {
+    // Check if company has any accounts, transactions, etc.
+    const [accounts, journalEntries] = await Promise.all([
+      db.select().from(accounts).where(eq(accounts.companyId, companyId)).limit(1),
+      db.select().from(journalEntries).where(eq(journalEntries.companyId, companyId)).limit(1),
+    ]);
+    
+    return accounts.length > 0 || journalEntries.length > 0;
+  }
+
+  async getActivityLogs(limit: number): Promise<ActivityLog[]> {
+    // This would come from a dedicated activity_logs table
+    // For now, return mock data
+    return [
+      {
+        id: 1,
+        userId: 1,
+        userName: "admin",
+        action: "CREATE",
+        resource: "COMPANY",
+        details: "Created company: Acme Corporation",
+        timestamp: new Date().toISOString(),
+        ipAddress: "192.168.1.100",
+      },
+    ];
+  }
+
+  async logActivity(
+    userId: number, 
+    action: string, 
+    resource: string, 
+    details?: string, 
+    ipAddress?: string
+  ): Promise<void> {
+    // This would insert into an activity_logs table
+    // Implementation depends on your activity logging requirements
+    console.log('Activity:', { userId, action, resource, details, ipAddress });
   }
 }
 

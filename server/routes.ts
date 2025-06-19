@@ -616,6 +616,239 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global Administration routes (only for global administrators)
+  const requireGlobalAdmin = (req: any, res: any, next: any) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Check if user is global administrator
+    storage.getUser(req.session.userId).then(user => {
+      if (!user || user.globalRole !== 'global_administrator') {
+        return res.status(403).json({ message: 'Global administrator access required' });
+      }
+      next();
+    }).catch(error => {
+      console.error('Global admin check error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    });
+  };
+
+  // System statistics
+  app.get('/api/admin/system-stats', requireGlobalAdmin, async (req, res) => {
+    try {
+      const [companies, users, transactions] = await Promise.all([
+        storage.getAllCompanies(),
+        storage.getAllUsers(),
+        storage.getTransactionCount()
+      ]);
+
+      const activeCompanies = companies.filter(c => c.isActive).length;
+      const activeUsers = users.filter(u => u.isActive).length;
+
+      res.json({
+        totalCompanies: companies.length,
+        activeCompanies,
+        totalUsers: users.length,
+        activeUsers,
+        totalTransactions: transactions,
+        storageUsed: "2.3 GB", // This would be calculated from actual database size
+        systemUptime: process.uptime(),
+        lastBackup: null, // This would come from backup system
+      });
+    } catch (error) {
+      console.error('Get system stats error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Get all companies (global admin view)
+  app.get('/api/admin/companies', requireGlobalAdmin, async (req, res) => {
+    try {
+      const companies = await storage.getAllCompaniesWithStats();
+      res.json(companies);
+    } catch (error) {
+      console.error('Get admin companies error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Create company (global admin)
+  app.post('/api/admin/companies', requireGlobalAdmin, async (req, res) => {
+    try {
+      const companyData = {
+        name: req.body.name,
+        code: req.body.code.toUpperCase(),
+        description: req.body.description || null,
+        isActive: true,
+      };
+      
+      const company = await storage.createCompany(companyData);
+      res.json(company);
+    } catch (error) {
+      console.error('Create admin company error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Update company (global admin)
+  app.put('/api/admin/companies/:id', requireGlobalAdmin, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      const updateData = {
+        name: req.body.name,
+        code: req.body.code.toUpperCase(),
+        description: req.body.description || null,
+      };
+      
+      const company = await storage.updateCompany(companyId, updateData);
+      if (!company) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+      
+      res.json(company);
+    } catch (error) {
+      console.error('Update admin company error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Delete company (global admin)
+  app.delete('/api/admin/companies/:id', requireGlobalAdmin, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      
+      // Check if company has any data before deletion
+      const hasData = await storage.companyHasData(companyId);
+      if (hasData) {
+        return res.status(400).json({ 
+          message: 'Cannot delete company with existing data. Please archive instead.' 
+        });
+      }
+      
+      await storage.deleteCompany(companyId);
+      res.json({ message: 'Company deleted successfully' });
+    } catch (error) {
+      console.error('Delete admin company error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Toggle company status
+  app.put('/api/admin/companies/:id/status', requireGlobalAdmin, async (req, res) => {
+    try {
+      const companyId = parseInt(req.params.id);
+      const { isActive } = req.body;
+      
+      const company = await storage.updateCompany(companyId, { isActive });
+      if (!company) {
+        return res.status(404).json({ message: 'Company not found' });
+      }
+      
+      res.json(company);
+    } catch (error) {
+      console.error('Toggle company status error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Get all global users
+  app.get('/api/admin/global-users', requireGlobalAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsersWithStats();
+      res.json(users);
+    } catch (error) {
+      console.error('Get global users error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Create global user
+  app.post('/api/admin/global-users', requireGlobalAdmin, async (req, res) => {
+    try {
+      const userData = {
+        username: req.body.username,
+        email: req.body.email,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        password: await hashPassword(req.body.password),
+        globalRole: req.body.globalRole,
+        isActive: true,
+      };
+      
+      const user = await storage.createUser(userData);
+      
+      // Remove password from response
+      const { password, ...userResponse } = user;
+      res.json(userResponse);
+    } catch (error) {
+      console.error('Create global user error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Update global user
+  app.put('/api/admin/global-users/:id', requireGlobalAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const updateData: any = {
+        username: req.body.username,
+        email: req.body.email,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        globalRole: req.body.globalRole,
+      };
+      
+      // Only update password if provided
+      if (req.body.password && req.body.password.trim() !== '') {
+        updateData.password = await hashPassword(req.body.password);
+      }
+      
+      const user = await storage.updateUser(userId, updateData);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Remove password from response
+      const { password, ...userResponse } = user;
+      res.json(userResponse);
+    } catch (error) {
+      console.error('Update global user error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Toggle user status
+  app.put('/api/admin/global-users/:id/status', requireGlobalAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { isActive } = req.body;
+      
+      const user = await storage.updateUser(userId, { isActive });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Remove password from response
+      const { password, ...userResponse } = user;
+      res.json(userResponse);
+    } catch (error) {
+      console.error('Toggle user status error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Get activity logs
+  app.get('/api/admin/activity-logs', requireGlobalAdmin, async (req, res) => {
+    try {
+      const logs = await storage.getActivityLogs(100); // Get last 100 activities
+      res.json(logs);
+    } catch (error) {
+      console.error('Get activity logs error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

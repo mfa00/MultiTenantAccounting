@@ -133,6 +133,19 @@ export const bills = pgTable("bills", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Activity Logs
+export const activityLogs = pgTable("activity_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  action: text("action").notNull(), // CREATE, UPDATE, DELETE, LOGIN, etc.
+  resource: text("resource").notNull(), // COMPANY, USER, TRANSACTION, etc.
+  resourceId: integer("resource_id"), // ID of the affected resource
+  details: text("details"), // Additional details about the action
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   userCompanies: many(userCompanies),
@@ -203,6 +216,7 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({ id: tru
 export const insertVendorSchema = createInsertSchema(vendors).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
 export const insertBillSchema = createInsertSchema(bills).omit({ id: true, createdAt: true });
+export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -225,3 +239,5 @@ export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Bill = typeof bills.$inferSelect;
 export type InsertBill = z.infer<typeof insertBillSchema>;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;

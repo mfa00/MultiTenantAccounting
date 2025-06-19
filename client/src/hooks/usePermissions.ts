@@ -1,10 +1,23 @@
 import { useAuth } from './useAuth';
 import { useCompany } from './useCompany';
-import { hasPermission, type Role, PERMISSIONS, getRolePermissions, canAssignRole } from '@shared/permissions';
+import { 
+  hasPermission, 
+  hasEffectivePermission,
+  hasGlobalPermission,
+  type Role, 
+  type GlobalRole,
+  PERMISSIONS, 
+  getRolePermissions, 
+  canAssignRole,
+  isGlobalAdmin
+} from '@shared/permissions';
 
 export function usePermissions() {
-  const { companies } = useAuth();
+  const { companies, user } = useAuth();
   const { currentCompany } = useCompany();
+
+  // Get current user's global role
+  const globalRole: GlobalRole = (user as any)?.globalRole || 'user';
 
   // Get current user's role for the selected company
   const getCurrentRole = (): Role | null => {
@@ -16,10 +29,9 @@ export function usePermissions() {
 
   const currentRole = getCurrentRole();
 
-  // Check if user has a specific permission
+  // Check if user has a specific permission (considers global role)
   const can = (permission: keyof typeof PERMISSIONS): boolean => {
-    if (!currentRole) return false;
-    return hasPermission(currentRole, permission);
+    return hasEffectivePermission(globalRole, currentRole, permission);
   };
 
   // Check if user can perform multiple permissions (OR logic)
@@ -34,6 +46,9 @@ export function usePermissions() {
 
   // Check if user can assign a specific role
   const canAssign = (targetRole: Role): boolean => {
+    // Global administrators can assign any role
+    if (isGlobalAdmin(globalRole)) return true;
+    
     if (!currentRole) return false;
     return canAssignRole(currentRole, targetRole);
   };
@@ -108,10 +123,23 @@ export function usePermissions() {
 
     // Dashboard
     canViewDashboard: () => can('DASHBOARD_VIEW'),
+
+    // Global role checks
+    isGlobalAdministrator: () => isGlobalAdmin(globalRole),
+
+    // Global system permissions
+    canViewAllCompanies: () => hasGlobalPermission(globalRole, 'SYSTEM_VIEW_ALL_COMPANIES'),
+    canCreateCompanies: () => hasGlobalPermission(globalRole, 'SYSTEM_CREATE_COMPANIES'),
+    canDeleteCompanies: () => hasGlobalPermission(globalRole, 'SYSTEM_DELETE_COMPANIES'),
+    canManageGlobalUsers: () => hasGlobalPermission(globalRole, 'SYSTEM_MANAGE_GLOBAL_USERS'),
+    canViewSystemLogs: () => hasGlobalPermission(globalRole, 'SYSTEM_VIEW_SYSTEM_LOGS'),
+    canBackupRestore: () => hasGlobalPermission(globalRole, 'SYSTEM_BACKUP_RESTORE'),
+    canAccessAllData: () => hasGlobalPermission(globalRole, 'SYSTEM_ACCESS_ALL_DATA'),
   };
 
   return {
     currentRole,
+    globalRole,
     can,
     canAny,
     canAll,

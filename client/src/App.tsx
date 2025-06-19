@@ -16,6 +16,7 @@ import UserManagement from "@/pages/admin/UserManagement";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 import RoleManagement from "@/pages/admin/RoleManagement";
+import GlobalAdministration from "@/pages/admin/GlobalAdministration";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
@@ -56,6 +57,7 @@ function Router() {
       <Route path="/user-management" component={() => <ProtectedRoute component={UserManagement} />} />
       <Route path="/role-management" component={() => <ProtectedRoute component={RoleManagement} />} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
+      <Route path="/global-administration" component={() => <ProtectedRoute component={GlobalAdministration} />} />
       <Route component={NotFound} />
     </Switch>
   );
