@@ -218,6 +218,74 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true,
 export const insertBillSchema = createInsertSchema(bills).omit({ id: true, createdAt: true });
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
 
+// Enhanced validation schemas with business rules
+export const insertUserSchemaEnhanced = insertUserSchema.extend({
+  email: z.string().email("Invalid email format"),
+  username: z.string().min(3, "Username must be at least 3 characters").max(50, "Username too long"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  globalRole: z.enum(["user", "global_administrator"]).default("user")
+});
+
+export const insertCompanySchemaEnhanced = insertCompanySchema.extend({
+  name: z.string().min(1, "Company name is required").max(100, "Company name too long"),
+  code: z.string().min(2, "Company code must be at least 2 characters").max(10, "Company code too long").regex(/^[A-Z0-9]+$/, "Company code must contain only uppercase letters and numbers"),
+  email: z.string().email("Invalid email format").optional(),
+  currency: z.string().length(3, "Currency must be 3 characters (ISO 4217)").default("USD"),
+  fiscalYearStart: z.number().min(1).max(12, "Fiscal year start must be between 1-12")
+});
+
+export const insertAccountSchemaEnhanced = insertAccountSchema.extend({
+  code: z.string().min(1, "Account code is required").max(20, "Account code too long"),
+  name: z.string().min(1, "Account name is required").max(100, "Account name too long"),
+  type: z.enum(["asset", "liability", "equity", "revenue", "expense"], {
+    errorMap: () => ({ message: "Account type must be one of: asset, liability, equity, revenue, expense" })
+  }),
+  subType: z.string().optional()
+});
+
+export const insertJournalEntrySchemaEnhanced = insertJournalEntrySchema.extend({
+  entryNumber: z.string().min(1, "Entry number is required"),
+  description: z.string().min(1, "Description is required").max(500, "Description too long"),
+  totalAmount: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num > 0;
+  }, "Total amount must be a positive number"),
+  date: z.date().max(new Date(), "Entry date cannot be in the future")
+});
+
+export const insertJournalEntryLineSchemaEnhanced = insertJournalEntryLineSchema.extend({
+  debitAmount: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0;
+  }, "Debit amount must be a non-negative number"),
+  creditAmount: z.string().refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0;
+  }, "Credit amount must be a non-negative number")
+}).refine((data) => {
+  const debit = parseFloat(data.debitAmount || "0");
+  const credit = parseFloat(data.creditAmount || "0");
+  return (debit > 0 && credit === 0) || (credit > 0 && debit === 0);
+}, {
+  message: "Either debit or credit amount must be specified, but not both",
+  path: ["debitAmount"]
+});
+
+// Business validation for complete journal entries
+export const journalEntryWithLinesSchema = z.object({
+  entry: insertJournalEntrySchemaEnhanced,
+  lines: z.array(insertJournalEntryLineSchemaEnhanced).min(2, "Journal entry must have at least 2 lines")
+}).refine((data) => {
+  const totalDebits = data.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount || "0"), 0);
+  const totalCredits = data.lines.reduce((sum, line) => sum + parseFloat(line.creditAmount || "0"), 0);
+  return Math.abs(totalDebits - totalCredits) < 0.01; // Allow for rounding differences
+}, {
+  message: "Total debits must equal total credits",
+  path: ["lines"]
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -241,3 +309,11 @@ export type Bill = typeof bills.$inferSelect;
 export type InsertBill = z.infer<typeof insertBillSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+
+// Enhanced types with validation
+export type InsertUserEnhanced = z.infer<typeof insertUserSchemaEnhanced>;
+export type InsertCompanyEnhanced = z.infer<typeof insertCompanySchemaEnhanced>;
+export type InsertAccountEnhanced = z.infer<typeof insertAccountSchemaEnhanced>;
+export type InsertJournalEntryEnhanced = z.infer<typeof insertJournalEntrySchemaEnhanced>;
+export type InsertJournalEntryLineEnhanced = z.infer<typeof insertJournalEntryLineSchemaEnhanced>;
+export type JournalEntryWithLines = z.infer<typeof journalEntryWithLinesSchema>;
