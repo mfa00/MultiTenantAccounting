@@ -4,6 +4,9 @@ import session from "express-session";
 import { storage } from "./storage";
 import { authenticateUser, hashPassword, getUserWithCompanies } from "./auth";
 import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
+import { users, userCompanies, companies } from "./db/schema";
 
 declare module "express-session" {
   interface SessionData {
@@ -365,6 +368,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(recentEntries);
     } catch (error) {
       console.error('Get recent transactions error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Users management endpoints (add after the existing routes)
+  app.get('/api/users', requireAuth, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ message: 'Current user not found' });
+      }
+
+      let users;
+      
+      // If global administrator, show all users
+      if (currentUser.globalRole === 'global_administrator') {
+        // Get all users in the system
+        users = await db.select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          globalRole: users.globalRole,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+        }).from(users);
+      } else {
+        // For non-global admins, show users in current company only
+        if (!req.session.currentCompanyId) {
+          return res.status(400).json({ message: 'No company selected' });
+        }
+
+        const companyUsers = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            globalRole: users.globalRole,
+            isActive: users.isActive,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .innerJoin(userCompanies, eq(users.id, userCompanies.userId))
+          .where(eq(userCompanies.companyId, req.session.currentCompanyId));
+        
+        users = companyUsers;
+      }
+
+      res.json(users);
+    } catch (error) {
+      console.error('Get users error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/users', requireAuth, async (req, res) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByUsername(userData.username) || 
+                          await storage.getUserByEmail(userData.email);
+      
+      if (existingUser) {
+        return res.status(400).json({ message: 'User already exists' });
+      }
+
+      // Hash password
+      const hashedPassword = await hashPassword(userData.password);
+      
+      // Create user
+      const user = await storage.createUser({
+        ...userData,
+        password: hashedPassword,
+      });
+
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        globalRole: user.globalRole,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+      });
+    } catch (error) {
+      console.error('Create user error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // User-Company assignments endpoint
+  app.get('/api/user-companies', requireAuth, async (req, res) => {
+    try {
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ message: 'Current user not found' });
+      }
+
+      let userCompanyAssignments;
+
+      // If global administrator, show all user-company assignments
+      if (currentUser.globalRole === 'global_administrator') {
+        userCompanyAssignments = await db
+          .select({
+            id: userCompanies.id,
+            userId: userCompanies.userId,
+            companyId: userCompanies.companyId,
+            role: userCompanies.role,
+            isActive: userCompanies.isActive,
+            user: {
+              id: users.id,
+              username: users.username,
+              email: users.email,
+              firstName: users.firstName,
+              lastName: users.lastName,
+            },
+            company: {
+              id: companies.id,
+              name: companies.name,
+              code: companies.code,
+            }
+          })
+          .from(userCompanies)
+          .innerJoin(users, eq(userCompanies.userId, users.id))
+          .innerJoin(companies, eq(userCompanies.companyId, companies.id));
+      } else {
+        // For non-global admins, show assignments for current company only
+        if (!req.session.currentCompanyId) {
+          return res.status(400).json({ message: 'No company selected' });
+        }
+
+        userCompanyAssignments = await db
+          .select({
+            id: userCompanies.id,
+            userId: userCompanies.userId,
+            companyId: userCompanies.companyId,
+            role: userCompanies.role,
+            isActive: userCompanies.isActive,
+            user: {
+              id: users.id,
+              username: users.username,
+              email: users.email,
+              firstName: users.firstName,
+              lastName: users.lastName,
+            },
+            company: {
+              id: companies.id,
+              name: companies.name,
+              code: companies.code,
+            }
+          })
+          .from(userCompanies)
+          .innerJoin(users, eq(userCompanies.userId, users.id))
+          .innerJoin(companies, eq(userCompanies.companyId, companies.id))
+          .where(eq(userCompanies.companyId, req.session.currentCompanyId));
+      }
+
+      res.json(userCompanyAssignments);
+    } catch (error) {
+      console.error('Get user-companies error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/user-companies', requireAuth, async (req, res) => {
+    try {
+      const assignmentData = userCompanySchema.parse(req.body);
+      const assignment = await storage.createUserCompany(assignmentData);
+      res.json(assignment);
+    } catch (error) {
+      console.error('Create user-company assignment error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
