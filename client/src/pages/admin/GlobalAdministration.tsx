@@ -120,93 +120,35 @@ export default function GlobalAdministration() {
   });
 
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
-    queryKey: ['/api/admin/companies'],
+    queryKey: ['/api/global-admin/companies'],
     queryFn: async () => {
-      // Mock data for now
-      return [
-        {
-          id: 1,
-          name: "Acme Corporation",
-          code: "ACME",
-          description: "Main company for testing",
-          isActive: true,
-          createdAt: "2024-01-15T10:00:00Z",
-          userCount: 8,
-          lastActivity: "2024-01-20T14:30:00Z",
-        },
-        {
-          id: 2,
-          name: "Beta Industries",
-          code: "BETA",
-          description: "Secondary company",
-          isActive: true,
-          createdAt: "2024-01-16T09:00:00Z",
-          userCount: 5,
-          lastActivity: "2024-01-19T16:45:00Z",
-        },
-      ];
+      const response = await fetch('/api/global-admin/companies');
+      if (!response.ok) {
+        throw new Error('Failed to fetch companies');
+      }
+      return response.json();
     },
   });
 
   const { data: globalUsers = [], isLoading: usersLoading } = useQuery<GlobalUser[]>({
-    queryKey: ['/api/admin/global-users'],
+    queryKey: ['/api/global-admin/users'],
     queryFn: async () => {
-      // Mock data for now
-      return [
-        {
-          id: 1,
-          username: "admin",
-          email: "admin@example.com",
-          firstName: "System",
-          lastName: "Administrator",
-          globalRole: "global_administrator",
-          isActive: true,
-          createdAt: "2024-01-01T00:00:00Z",
-          lastLogin: "2024-01-20T08:00:00Z",
-          companiesCount: 15,
-        },
-        {
-          id: 2,
-          username: "john.doe",
-          email: "john@example.com",
-          firstName: "John",
-          lastName: "Doe",
-          globalRole: "user",
-          isActive: true,
-          createdAt: "2024-01-10T10:00:00Z",
-          lastLogin: "2024-01-19T17:30:00Z",
-          companiesCount: 2,
-        },
-      ];
+      const response = await fetch('/api/global-admin/users');
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      return response.json();
     },
   });
 
   const { data: activityLogs = [], isLoading: logsLoading } = useQuery<ActivityLog[]>({
-    queryKey: ['/api/admin/activity-logs'],
+    queryKey: ['/api/global-admin/activity'],
     queryFn: async () => {
-      // Mock data for now
-      return [
-        {
-          id: 1,
-          userId: 1,
-          userName: "admin",
-          action: "CREATE",
-          resource: "COMPANY",
-          details: "Created company: Acme Corporation",
-          timestamp: "2024-01-20T10:30:00Z",
-          ipAddress: "192.168.1.100",
-        },
-        {
-          id: 2,
-          userId: 2,
-          userName: "john.doe",
-          action: "LOGIN",
-          resource: "SESSION",
-          details: "User logged in",
-          timestamp: "2024-01-20T09:15:00Z",
-          ipAddress: "192.168.1.105",
-        },
-      ];
+      const response = await fetch('/api/global-admin/activity');
+      if (!response.ok) {
+        throw new Error('Failed to fetch activity logs');
+      }
+      return response.json();
     },
   });
 

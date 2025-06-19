@@ -1,6 +1,6 @@
 import { 
   users, companies, userCompanies, accounts, journalEntries, journalEntryLines,
-  customers, vendors, invoices, bills,
+  customers, vendors, invoices, bills, activityLogs,
   type User, type InsertUser, type Company, type InsertCompany,
   type UserCompany, type InsertUserCompany, type Account, type InsertAccount,
   type JournalEntry, type InsertJournalEntry, type JournalEntryLine, type InsertJournalEntryLine,
@@ -24,6 +24,7 @@ export interface IStorage {
   getAllCompanies(): Promise<Company[]>;
   createCompany(company: InsertCompany): Promise<Company>;
   updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company | undefined>;
+  deleteCompany(id: number): Promise<void>;
 
   // User-Company methods
   getUserCompany(userId: number, companyId: number): Promise<UserCompany | undefined>;

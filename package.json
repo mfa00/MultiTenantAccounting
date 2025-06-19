@@ -17,7 +17,8 @@
     "db:test": "tsx --env-file=.env scripts/test-db-connection.ts",
     "db:init": "tsx --env-file=.env scripts/init-database.ts",
     "db:test-queries": "tsx --env-file=.env scripts/run-test-queries.ts",
-    "db:quick-check": "tsx --env-file=.env scripts/run-test-queries.ts --quick"
+    "db:quick-check": "tsx --env-file=.env scripts/run-test-queries.ts --quick",
+    "setup": "tsx --env-file=.env scripts/start-system.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

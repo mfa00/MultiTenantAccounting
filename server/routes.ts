@@ -3,9 +3,10 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { authenticateUser, hashPassword, getUserWithCompanies } from "./auth";
-import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema, insertUserCompanySchema, users as usersTable, userCompanies as userCompaniesTable, companies as companiesTable } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema, insertUserCompanySchema, users as usersTable, userCompanies as userCompaniesTable, companies as companiesTable, accounts, activityLogs } from "@shared/schema";
+import { eq, desc, sql, and } from "drizzle-orm";
 import { db } from "./db";
+import globalAdminRouter from "./api/global-admin";
 
 declare module "express-session" {
   interface SessionData {
@@ -848,6 +849,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // Mount global admin routes
+  app.use('/api/global-admin', globalAdminRouter);
 
   const httpServer = createServer(app);
   return httpServer;
