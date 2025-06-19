@@ -1,5 +1,6 @@
 // Role-based permissions system
 export type Role = 'assistant' | 'accountant' | 'manager' | 'administrator';
+export type GlobalRole = 'global_administrator' | 'user';
 
 export interface Permission {
   module: string;
@@ -263,4 +264,59 @@ export function canAssignRole(assignerRole: Role, targetRole: Role): boolean {
   
   // Others cannot assign roles
   return false;
+}
+
+// Add global permissions
+export const GLOBAL_PERMISSIONS = {
+  // System Administration
+  SYSTEM_VIEW_ALL_COMPANIES: { module: 'system', action: 'view_all_companies', description: 'View all companies in system' },
+  SYSTEM_CREATE_COMPANIES: { module: 'system', action: 'create_companies', description: 'Create companies' },
+  SYSTEM_DELETE_COMPANIES: { module: 'system', action: 'delete_companies', description: 'Delete companies' },
+  SYSTEM_MANAGE_GLOBAL_USERS: { module: 'system', action: 'manage_global_users', description: 'Manage global user roles' },
+  SYSTEM_VIEW_SYSTEM_LOGS: { module: 'system', action: 'view_system_logs', description: 'View system logs' },
+  SYSTEM_BACKUP_RESTORE: { module: 'system', action: 'backup_restore', description: 'Backup and restore system' },
+  SYSTEM_ACCESS_ALL_DATA: { module: 'system', action: 'access_all_data', description: 'Access data across all companies' },
+} as const;
+
+// Global role permissions mapping
+export const GLOBAL_ROLE_PERMISSIONS: Record<GlobalRole, (keyof typeof GLOBAL_PERMISSIONS)[]> = {
+  // Global Administrator - Full system access across all companies
+  global_administrator: [
+    'SYSTEM_VIEW_ALL_COMPANIES',
+    'SYSTEM_CREATE_COMPANIES', 
+    'SYSTEM_DELETE_COMPANIES',
+    'SYSTEM_MANAGE_GLOBAL_USERS',
+    'SYSTEM_VIEW_SYSTEM_LOGS',
+    'SYSTEM_BACKUP_RESTORE',
+    'SYSTEM_ACCESS_ALL_DATA',
+  ],
+  
+  // Regular User - Standard access, must be assigned to companies
+  user: [],
+};
+
+// Helper function to check global permissions
+export function hasGlobalPermission(globalRole: GlobalRole, permission: keyof typeof GLOBAL_PERMISSIONS): boolean {
+  return GLOBAL_ROLE_PERMISSIONS[globalRole].includes(permission);
+}
+
+// Helper function to check if user has global admin access
+export function isGlobalAdmin(globalRole: GlobalRole): boolean {
+  return globalRole === 'global_administrator';
+}
+
+// Updated permission checking that considers global roles first
+export function hasEffectivePermission(
+  globalRole: GlobalRole, 
+  companyRole: Role | null, 
+  permission: keyof typeof PERMISSIONS
+): boolean {
+  // Global administrators have all permissions
+  if (isGlobalAdmin(globalRole)) {
+    return true;
+  }
+  
+  // Otherwise check company-specific role
+  if (!companyRole) return false;
+  return hasPermission(companyRole, permission);
 }
