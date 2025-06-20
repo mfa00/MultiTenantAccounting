@@ -40,15 +40,26 @@ async function validateAndCreateSchema() {
 
     // Get existing tables
     console.log('\n2. Checking existing tables...');
-    const existingTables = await db.execute(sql`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      ORDER BY table_name
-    `);
+    let discoveredTableNames: string[] = [];
     
-    const tableNames = (existingTables as unknown as any[]).map((row: any) => row.table_name);
-    console.log('📋 Existing tables:', tableNames.join(', ') || 'None');
+    try {
+      // Use the same approach as the working db-validation service
+      const existingTablesResult = await db.execute(sql`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+        ORDER BY table_name
+      `);
+      
+      // Handle the result properly - Drizzle results have a .rows property
+      discoveredTableNames = existingTablesResult.rows 
+        ? existingTablesResult.rows.map((row: any) => row.table_name)
+        : [];
+      console.log('📋 Existing tables:', discoveredTableNames.join(', ') || 'None');
+      
+    } catch (error: any) {
+      console.log('❌ Failed to get existing tables:', error.message);
+    }
 
     // Define required tables with their schemas
     const requiredTables = {
@@ -296,7 +307,7 @@ async function validateAndCreateSchema() {
     for (const [tableName, tableSchema] of Object.entries(requiredTables)) {
       console.log(`\n   📋 Checking table: ${tableName}`);
       
-      if (!tableNames.includes(tableName)) {
+      if (!discoveredTableNames.includes(tableName)) {
         console.log(`   ❌ Table ${tableName} does not exist. Creating...`);
         
         // Create sequence if needed
@@ -333,14 +344,16 @@ async function validateAndCreateSchema() {
         console.log(`   ✅ Table ${tableName} exists. Validating schema...`);
         
         try {
-          const tableInfo = await db.execute(sql.raw(`
+          const tableInfoResult = await db.execute(sql.raw(`
             SELECT column_name, data_type, is_nullable, column_default
             FROM information_schema.columns
             WHERE table_name = '${tableName}' AND table_schema = 'public'
             ORDER BY ordinal_position
           `));
           
-          const tableInfoArray = tableInfo as unknown as TableInfo[];
+          const tableInfoArray = tableInfoResult.rows
+            ? tableInfoResult.rows as unknown as TableInfo[]
+            : [];
           const existingColumns = tableInfoArray.map(col => col.column_name);
           const requiredColumns = tableSchema.columns.map(col => col.name);
           
@@ -416,14 +429,16 @@ async function validateAndCreateSchema() {
 
     // Final validation
     console.log('\n5. Final validation...');
-    const finalTables = await db.execute(sql`
+    const finalTablesResult = await db.execute(sql`
       SELECT table_name 
       FROM information_schema.tables 
-      WHERE table_schema = 'public' 
+      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
       ORDER BY table_name
     `);
     
-    const finalTableNames = (finalTables as unknown as any[]).map((row: any) => row.table_name);
+    const finalTableNames = finalTablesResult.rows
+      ? finalTablesResult.rows.map((row: any) => row.table_name)
+      : [];
     const allRequiredTables = Object.keys(requiredTables);
     const missingTables = allRequiredTables.filter(table => !finalTableNames.includes(table));
 
@@ -449,19 +464,19 @@ async function validateAndCreateSchema() {
     try {
       // Test users table
       const userCount = await db.execute(sql`SELECT COUNT(*) as count FROM users`);
-      console.log(`   ✅ Users table: ${(userCount[0] as any).count} records`);
+      console.log(`   ✅ Users table: ${userCount.rows?.[0]?.count || 0} records`);
       
       // Test companies table
       const companyCount = await db.execute(sql`SELECT COUNT(*) as count FROM companies`);
-      console.log(`   ✅ Companies table: ${(companyCount[0] as any).count} records`);
+      console.log(`   ✅ Companies table: ${companyCount.rows?.[0]?.count || 0} records`);
       
       // Test activity_logs table
       const activityCount = await db.execute(sql`SELECT COUNT(*) as count FROM activity_logs`);
-      console.log(`   ✅ Activity logs table: ${(activityCount[0] as any).count} records`);
+      console.log(`   ✅ Activity logs table: ${activityCount.rows?.[0]?.count || 0} records`);
       
       // Test company_settings table
       const settingsCount = await db.execute(sql`SELECT COUNT(*) as count FROM company_settings`);
-      console.log(`   ✅ Company settings table: ${(settingsCount[0] as any).count} records`);
+      console.log(`   ✅ Company settings table: ${settingsCount.rows?.[0]?.count || 0} records`);
       
     } catch (error: any) {
       console.log(`   ⚠️  Basic operations test warning:`, error.message);
