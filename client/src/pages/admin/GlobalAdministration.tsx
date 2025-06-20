@@ -139,9 +139,9 @@ export default function GlobalAdministration() {
   const [activityFilters, setActivityFilters] = useState({
     page: 1,
     limit: 50,
-    action: '',
-    resource: '',
-    userId: '',
+    action: 'all',
+    resource: 'all',
+    userId: 'all',
     startDate: '',
     endDate: '',
     search: ''
@@ -152,7 +152,10 @@ export default function GlobalAdministration() {
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(activityFilters).forEach(([key, value]) => {
-        if (value) params.append(key, value.toString());
+        // Don't include "all" values or empty strings in the API request
+        if (value && value !== 'all') {
+          params.append(key, value.toString());
+        }
       });
       
       const response = await fetch(`/api/activity-logs?${params}`);
@@ -1002,10 +1005,10 @@ export default function GlobalAdministration() {
                     onValueChange={(value) => setActivityFilters(prev => ({ ...prev, action: value, page: 1 }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="All actions" />
+                      <SelectValue placeholder="Filter by action" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All actions</SelectItem>
+                      <SelectItem value="all">All actions</SelectItem>
                       {activityFiltersData?.data?.actions?.map((action: any) => (
                         <SelectItem key={action.value} value={action.value}>
                           {action.label}
@@ -1022,10 +1025,10 @@ export default function GlobalAdministration() {
                     onValueChange={(value) => setActivityFilters(prev => ({ ...prev, resource: value, page: 1 }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="All resources" />
+                      <SelectValue placeholder="Filter by resource" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All resources</SelectItem>
+                      <SelectItem value="all">All resources</SelectItem>
                       {activityFiltersData?.data?.resources?.map((resource: any) => (
                         <SelectItem key={resource.value} value={resource.value}>
                           {resource.label}
@@ -1042,10 +1045,10 @@ export default function GlobalAdministration() {
                     onValueChange={(value) => setActivityFilters(prev => ({ ...prev, userId: value, page: 1 }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="All users" />
+                      <SelectValue placeholder="Filter by user" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All users</SelectItem>
+                      <SelectItem value="all">All users</SelectItem>
                       {activityFiltersData?.data?.users?.map((user: any) => (
                         <SelectItem key={user.value} value={user.value.toString()}>
                           {user.label}
@@ -1082,9 +1085,9 @@ export default function GlobalAdministration() {
                   onClick={() => setActivityFilters({
                     page: 1,
                     limit: 50,
-                    action: '',
-                    resource: '',
-                    userId: '',
+                    action: 'all',
+                    resource: 'all',
+                    userId: 'all',
                     startDate: '',
                     endDate: '',
                     search: ''
