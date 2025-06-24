@@ -68,6 +68,37 @@
   @apply bg-card border-r border-border;
 }
 
+/* Application scaling */
+.app-scale-75 {
+  transform: scale(0.8);
+  transform-origin: top left;
+  width: 125%;
+  height: 125%;
+}
+
+/* Ensure smooth scrolling in sidebar */
+.accounting-sidebar [data-radix-scroll-area-viewport] {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.accounting-sidebar [data-radix-scroll-area-viewport]::-webkit-scrollbar {
+  width: 6px;
+}
+
+.accounting-sidebar [data-radix-scroll-area-viewport]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.accounting-sidebar [data-radix-scroll-area-viewport]::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 3px;
+}
+
+.accounting-sidebar [data-radix-scroll-area-viewport]::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground));
+}
+
 .accounting-nav-item {
   @apply flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors;
 }

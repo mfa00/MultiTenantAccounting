@@ -16,6 +16,7 @@
     "db:validate": "tsx --env-file=.env scripts/validate-schema.ts",
     "db:test": "tsx --env-file=.env scripts/test-db-connection.ts",
     "db:init": "tsx --env-file=.env scripts/init-database.ts",
+    "test:company-users": "tsx --env-file=.env scripts/test-company-users.ts",
     "db:test-queries": "tsx --env-file=.env scripts/run-test-queries.ts",
     "db:quick-check": "tsx --env-file=.env scripts/run-test-queries.ts --quick",
     "setup": "tsx --env-file=.env scripts/start-system.ts",
@@ -70,7 +71,9 @@
     "express": "^4.21.2",
     "express-session": "^1.18.1",
     "framer-motion": "^11.13.1",
+    "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",
+    "jspdf": "^3.0.1",
     "lucide-react": "^0.453.0",
     "memorystore": "^1.6.7",
     "nanoid": "^5.1.5",
@@ -117,8 +120,5 @@
     "tsx": "^4.19.1",
     "typescript": "5.6.3",
     "vite": "^5.4.14"
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.0.8"
   }
 }

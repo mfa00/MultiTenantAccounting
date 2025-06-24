@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db";
 import { activityLogs, users, companies } from "@shared/schema";
-import { eq, desc, and, gte, lte, like, or } from "drizzle-orm";
+import { eq, desc, and, gte, lte, like, or, count, sql } from "drizzle-orm";
 import { activityLogger } from "../services/activity-logger";
 
 const router = Router();
@@ -187,7 +187,7 @@ router.get("/summary", async (req, res) => {
     const actionCounts = await db
       .select({
         action: activityLogs.action,
-        count: activityLogs.id
+        count: count(activityLogs.id)
       })
       .from(activityLogs)
       .where(gte(activityLogs.timestamp, startDate))
@@ -197,40 +197,41 @@ router.get("/summary", async (req, res) => {
     const resourceCounts = await db
       .select({
         resource: activityLogs.resource,
-        count: activityLogs.id
+        count: count(activityLogs.id)
       })
       .from(activityLogs)
       .where(gte(activityLogs.timestamp, startDate))
       .groupBy(activityLogs.resource);
 
-    // Get daily activity counts
-    const dailyActivity = await db
+    // Get daily activity counts - use a different approach
+    const dailyActivityRaw = await db
       .select({
-        date: activityLogs.timestamp,
-        count: activityLogs.id
+        date: sql`DATE(${activityLogs.timestamp})`.as('date'),
+        count: count(activityLogs.id)
       })
       .from(activityLogs)
       .where(gte(activityLogs.timestamp, startDate))
-      .orderBy(desc(activityLogs.timestamp));
+      .groupBy(sql`DATE(${activityLogs.timestamp})`)
+      .orderBy(sql`DATE(${activityLogs.timestamp}) DESC`);
 
-    // Process daily activity into grouped data
-    const dailyMap = new Map();
-    dailyActivity.forEach(log => {
-      const date = new Date(log.date).toDateString();
-      dailyMap.set(date, (dailyMap.get(date) || 0) + 1);
-    });
-
-    const dailyCounts = Array.from(dailyMap.entries()).map(([date, count]) => ({
-      date,
-      count
+    // Format daily counts
+    const dailyCounts = dailyActivityRaw.map(item => ({
+      date: item.date,
+      count: parseInt(item.count.toString())
     }));
 
     res.json({
       success: true,
       data: {
         period: `${daysNum} days`,
-        actionCounts,
-        resourceCounts,
+        actionCounts: actionCounts.map(item => ({
+          action: item.action,
+          count: parseInt(item.count.toString())
+        })),
+        resourceCounts: resourceCounts.map(item => ({
+          resource: item.resource,
+          count: parseInt(item.count.toString())
+        })),
         dailyCounts
       }
     });

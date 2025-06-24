@@ -120,6 +120,52 @@ router.get("/user-assignments", async (req, res) => {
   }
 });
 
+// Get users for a specific company
+router.get("/companies/:companyId/users", async (req, res) => {
+  try {
+    const companyId = parseInt(req.params.companyId);
+    
+    if (isNaN(companyId)) {
+      return res.status(400).json({ error: "Invalid company ID" });
+    }
+
+    // Check if company exists
+    const company = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.id, companyId))
+      .limit(1);
+
+    if (company.length === 0) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    // Get all users assigned to this company
+    const companyUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: userCompanies.role,
+        isActive: userCompanies.isActive,
+        lastLogin: sql<string>`NULL`, // TODO: Add lastLogin field to users table
+        joinedAt: userCompanies.createdAt,
+        assignmentId: userCompanies.id, // Include assignment ID for editing/deleting
+      })
+      .from(userCompanies)
+      .innerJoin(users, eq(userCompanies.userId, users.id))
+      .where(eq(userCompanies.companyId, companyId))
+      .orderBy(users.firstName, users.lastName);
+
+    res.json(companyUsers);
+  } catch (error) {
+    console.error("Error fetching company users:", error);
+    res.status(500).json({ error: "Failed to fetch company users" });
+  }
+});
+
 // Create new company
 router.post("/companies", async (req, res) => {
   try {
@@ -451,9 +497,17 @@ router.put("/companies/:id", async (req, res) => {
 
 // Delete company
 router.delete("/companies/:id", async (req, res) => {
+  const companyId = parseInt(req.params.id);
+  
   try {
-    const companyId = parseInt(req.params.id);
+    console.log("Delete company request received for ID:", req.params.id);
 
+    if (isNaN(companyId)) {
+      console.log("Invalid company ID:", req.params.id);
+      return res.status(400).json({ error: "Invalid company ID" });
+    }
+
+    console.log("Checking for assigned users...");
     // Check if company has users assigned
     const assignedUsers = await db
       .select()
@@ -462,11 +516,13 @@ router.delete("/companies/:id", async (req, res) => {
       .limit(1);
 
     if (assignedUsers.length > 0) {
+      console.log("Company has assigned users, cannot delete");
       return res.status(400).json({ 
         error: "Cannot delete company with assigned users. Please remove all user assignments first." 
       });
     }
 
+    console.log("Checking for existing accounts...");
     // Check if company has accounts or transactions
     const hasAccounts = await db
       .select()
@@ -475,23 +531,69 @@ router.delete("/companies/:id", async (req, res) => {
       .limit(1);
 
     if (hasAccounts.length > 0) {
+      console.log("Company has existing accounts, cannot delete");
       return res.status(400).json({ 
         error: "Cannot delete company with existing accounts. Please archive the company instead." 
       });
     }
 
+    console.log("Proceeding with company deletion...");
     const deletedCompany = await db
       .delete(companies)
       .where(eq(companies.id, companyId))
       .returning();
 
     if (deletedCompany.length === 0) {
+      console.log("Company not found for deletion");
       return res.status(404).json({ error: "Company not found" });
+    }
+
+    console.log("Company deleted successfully:", deletedCompany[0]);
+
+    // Log the deletion activity
+    try {
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.COMPANY_DELETE,
+        RESOURCE_TYPES.COMPANY,
+        {
+          userId: (req as any).session?.userId || 0,
+          companyId: undefined, // Company is deleted, so no current company context
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent"),
+          additionalData: { deletedCompanyName: deletedCompany[0].name }
+        },
+        companyId,
+        deletedCompany[0],
+        undefined
+      );
+    } catch (logError) {
+      console.error("Failed to log company deletion:", logError);
+      // Don't fail the request if logging fails
     }
 
     res.json({ message: "Company deleted successfully" });
   } catch (error) {
     console.error("Error deleting company:", error);
+    
+    // Log company deletion error
+    try {
+      await activityLogger.logError(
+        ACTIVITY_ACTIONS.COMPANY_DELETE,
+        RESOURCE_TYPES.COMPANY,
+        {
+          userId: (req as any).session?.userId || 0,
+          companyId: undefined,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        error as Error,
+        companyId,
+        { attemptedCompanyId: companyId }
+      );
+    } catch (logError) {
+      console.error("Failed to log company deletion error:", logError);
+    }
+    
     res.status(500).json({ error: "Failed to delete company" });
   }
 });
@@ -643,6 +745,173 @@ router.put("/companies/:id/status", async (req, res) => {
   } catch (error) {
     console.error("Error updating company status:", error);
     res.status(500).json({ error: "Failed to update company status" });
+  }
+});
+
+// Assign user to company
+router.post("/assign-user", async (req, res) => {
+  try {
+    const { userId, companyId, role } = req.body;
+
+    if (!userId || !companyId || !role) {
+      return res.status(400).json({ error: "User ID, Company ID, and Role are required" });
+    }
+
+    // Verify user exists
+    const user = await db.select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (user.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify company exists
+    const company = await db.select()
+      .from(companies)
+      .where(eq(companies.id, companyId))
+      .limit(1);
+
+    if (company.length === 0) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    // Check if user is already assigned to this company
+    const existingAssignment = await db.select()
+      .from(userCompanies)
+      .where(and(
+        eq(userCompanies.userId, userId),
+        eq(userCompanies.companyId, companyId)
+      ))
+      .limit(1);
+
+    if (existingAssignment.length > 0) {
+      return res.status(400).json({ error: "User is already assigned to this company" });
+    }
+
+    // Create assignment
+    const assignment = await db.insert(userCompanies)
+      .values({
+        userId,
+        companyId,
+        role,
+        isActive: true,
+      })
+      .returning();
+
+    // Log activity
+    await activityLogger.logCRUD(
+      ACTIVITY_ACTIONS.USER_ASSIGN,
+      RESOURCE_TYPES.USER_COMPANY,
+      { userId, companyId },
+      assignment[0].id,
+      undefined,
+      { userId, companyId, role }
+    );
+
+    res.json({ message: "User assigned successfully", assignment: assignment[0] });
+  } catch (error) {
+    console.error("Error assigning user:", error);
+    res.status(500).json({ error: "Failed to assign user" });
+  }
+});
+
+// Update user role in company
+router.put("/user-assignments/:assignmentId", async (req, res) => {
+  try {
+    const assignmentId = parseInt(req.params.assignmentId);
+    const { role } = req.body;
+
+    if (isNaN(assignmentId)) {
+      return res.status(400).json({ error: "Invalid assignment ID" });
+    }
+
+    if (!role) {
+      return res.status(400).json({ error: "Role is required" });
+    }
+
+    // Verify assignment exists
+    const assignment = await db.select()
+      .from(userCompanies)
+      .where(eq(userCompanies.id, assignmentId))
+      .limit(1);
+
+    if (assignment.length === 0) {
+      return res.status(404).json({ error: "Assignment not found" });
+    }
+
+    // Update role
+    const updatedAssignment = await db.update(userCompanies)
+      .set({
+        role,
+      })
+      .where(eq(userCompanies.id, assignmentId))
+      .returning();
+
+    // Log activity
+    await activityLogger.logCRUD(
+      ACTIVITY_ACTIONS.ROLE_CHANGE,
+      RESOURCE_TYPES.USER_COMPANY,
+      { userId: assignment[0].userId },
+      assignmentId,
+      { role: assignment[0].role },
+      { role }
+    );
+
+    res.json({ message: "Role updated successfully", assignment: updatedAssignment[0] });
+  } catch (error) {
+    console.error("Error updating role:", error);
+    res.status(500).json({ error: "Failed to update role" });
+  }
+});
+
+// Remove user from company
+router.delete("/user-assignments/:assignmentId", async (req, res) => {
+  try {
+    const assignmentId = parseInt(req.params.assignmentId);
+
+    if (isNaN(assignmentId)) {
+      return res.status(400).json({ error: "Invalid assignment ID" });
+    }
+
+    // Verify assignment exists and get details for logging
+    const assignment = await db.select({
+      id: userCompanies.id,
+      userId: userCompanies.userId,
+      companyId: userCompanies.companyId,
+      role: userCompanies.role,
+      companyName: companies.name,
+      userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`
+    })
+      .from(userCompanies)
+      .innerJoin(companies, eq(userCompanies.companyId, companies.id))
+      .innerJoin(users, eq(userCompanies.userId, users.id))
+      .where(eq(userCompanies.id, assignmentId))
+      .limit(1);
+
+    if (assignment.length === 0) {
+      return res.status(404).json({ error: "Assignment not found" });
+    }
+
+    // Delete assignment
+    await db.delete(userCompanies)
+      .where(eq(userCompanies.id, assignmentId));
+
+    // Log activity
+    await activityLogger.logCRUD(
+      ACTIVITY_ACTIONS.USER_UNASSIGN,
+      RESOURCE_TYPES.USER_COMPANY,
+      { userId: assignment[0].userId, companyId: assignment[0].companyId },
+      assignmentId,
+      { userId: assignment[0].userId, companyId: assignment[0].companyId, role: assignment[0].role },
+      undefined
+    );
+
+    res.json({ message: "User removed from company successfully" });
+  } catch (error) {
+    console.error("Error removing user:", error);
+    res.status(500).json({ error: "Failed to remove user" });
   }
 });
 

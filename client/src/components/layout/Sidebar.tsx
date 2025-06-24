@@ -4,6 +4,7 @@ import { Calculator, BarChart3, List, Book, File, Receipt,
          Scale, PieChart, Users, Settings, Shield, Globe } from "lucide-react";
 import CompanySwitcher from "../CompanySwitcher";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface NavigationItem {
   name: string;
@@ -13,6 +14,12 @@ interface NavigationItem {
 }
 
 const navigation: NavigationItem[] = [
+  {
+    name: "Global Administration",
+    href: "/global-administration",
+    icon: Globe,
+    permission: "SYSTEM_VIEW_ALL_COMPANIES",
+  },
   {
     name: "Dashboard",
     href: "/dashboard",
@@ -116,16 +123,39 @@ const adminSection: NavigationItem[] = [
     permission: "USER_VIEW",
   },
   {
-    name: "Global Administration",
-    href: "/global-administration",
-    icon: Globe,
-    permission: "SYSTEM_VIEW_ALL_COMPANIES",
-  },
-  {
     name: "Settings",
     href: "/settings",
     icon: Settings,
     permission: "SETTINGS_VIEW",
+  },
+];
+
+// Additional test section to demonstrate scrolling
+const testSection: NavigationItem[] = [
+  {
+    name: "Test Item 1",
+    href: "/test-1",
+    icon: File,
+  },
+  {
+    name: "Test Item 2",
+    href: "/test-2",
+    icon: FileText,
+  },
+  {
+    name: "Test Item 3",
+    href: "/test-3",
+    icon: Receipt,
+  },
+  {
+    name: "Test Item 4",
+    href: "/test-4",
+    icon: DollarSign,
+  },
+  {
+    name: "Test Item 5",
+    href: "/test-5",
+    icon: ChartBar,
   },
 ];
 
@@ -161,9 +191,9 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="flex-shrink-0 w-64 accounting-sidebar">
-      {/* Logo & Company Switcher */}
-      <div className="p-4 border-b border-border">
+    <div className="flex flex-col h-full w-64 accounting-sidebar">
+      {/* Logo & Company Switcher - Fixed Header */}
+      <div className="flex-shrink-0 p-4 border-b border-border">
         <div className="flex items-center mb-4">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
             <Calculator className="text-primary-foreground text-sm" />
@@ -174,54 +204,64 @@ export default function Sidebar() {
         <CompanySwitcher />
       </div>
 
-      {/* Navigation Menu */}
-      <nav className="p-4 space-y-2">
-        <div className="space-y-1">
-          {navigation.map((item) => (
-            <NavItem key={item.name} item={item} />
-          ))}
-          
-          {/* Accounting Section */}
-          {getVisibleItems(accountingSection).length > 0 && (
-            <div className="mt-6">
-              <p className="accounting-nav-section">Accounting</p>
-              {getVisibleItems(accountingSection).map((item) => (
-                <NavItem key={item.name} item={item} />
-              ))}
-            </div>
-          )}
+      {/* Scrollable Navigation Menu */}
+      <ScrollArea className="flex-1">
+        <nav className="px-4 py-4 space-y-2 pb-6">
+          <div className="space-y-1">
+            {navigation.map((item) => (
+              <NavItem key={item.name} item={item} />
+            ))}
+            
+            {/* Accounting Section */}
+            {getVisibleItems(accountingSection).length > 0 && (
+              <div className="mt-6">
+                <p className="accounting-nav-section">Accounting</p>
+                {getVisibleItems(accountingSection).map((item) => (
+                  <NavItem key={item.name} item={item} />
+                ))}
+              </div>
+            )}
 
-          {/* Transactions Section */}
-          {getVisibleItems(transactionSection).length > 0 && (
-            <div className="mt-6">
-              <p className="accounting-nav-section">Transactions</p>
-              {getVisibleItems(transactionSection).map((item) => (
-                <NavItem key={item.name} item={item} />
-              ))}
-            </div>
-          )}
+            {/* Transactions Section */}
+            {getVisibleItems(transactionSection).length > 0 && (
+              <div className="mt-6">
+                <p className="accounting-nav-section">Transactions</p>
+                {getVisibleItems(transactionSection).map((item) => (
+                  <NavItem key={item.name} item={item} />
+                ))}
+              </div>
+            )}
 
-          {/* Reports Section */}
-          {getVisibleItems(reportSection).length > 0 && (
-            <div className="mt-6">
-              <p className="accounting-nav-section">Reports</p>
-              {getVisibleItems(reportSection).map((item) => (
-                <NavItem key={item.name} item={item} />
-              ))}
-            </div>
-          )}
+            {/* Reports Section */}
+            {getVisibleItems(reportSection).length > 0 && (
+              <div className="mt-6">
+                <p className="accounting-nav-section">Reports</p>
+                {getVisibleItems(reportSection).map((item) => (
+                  <NavItem key={item.name} item={item} />
+                ))}
+              </div>
+            )}
 
-          {/* Administration Section */}
-          {getVisibleItems(adminSection).length > 0 && (
+            {/* Administration Section */}
+            {getVisibleItems(adminSection).length > 0 && (
+              <div className="mt-6">
+                <p className="accounting-nav-section">Administration</p>
+                {getVisibleItems(adminSection).map((item) => (
+                  <NavItem key={item.name} item={item} />
+                ))}
+              </div>
+            )}
+
+            {/* Test Section - For Scrolling Demo */}
             <div className="mt-6">
-              <p className="accounting-nav-section">Administration</p>
-              {getVisibleItems(adminSection).map((item) => (
+              <p className="accounting-nav-section">Test Scrolling</p>
+              {testSection.map((item) => (
                 <NavItem key={item.name} item={item} />
               ))}
             </div>
-          )}
-        </div>
-      </nav>
+          </div>
+        </nav>
+      </ScrollArea>
     </div>
   );
 }

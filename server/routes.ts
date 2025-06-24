@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { authenticateUser, hashPassword, getUserWithCompanies } from "./auth";
-import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema, insertUserCompanySchema, users as usersTable, userCompanies as userCompaniesTable, companies as companiesTable, accounts, activityLogs, companySettings } from "@shared/schema";
+import { insertUserSchema, insertCompanySchema, insertAccountSchema, insertJournalEntrySchema, insertUserCompanySchema, users as usersTable, userCompanies as userCompaniesTable, companies as companiesTable, accounts, journalEntries, activityLogs, companySettings } from "@shared/schema";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { db } from "./db";
 import globalAdminRouter from "./api/global-admin";
@@ -81,6 +81,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await authenticateUser(username, password);
       if (!user) {
+        // Log failed login attempt
+        await activityLogger.logError(
+          ACTIVITY_ACTIONS.LOGIN,
+          RESOURCE_TYPES.USER,
+          {
+            userId: 0, // Unknown user
+            ipAddress: req.ip,
+            userAgent: req.get("User-Agent")
+          },
+          'Invalid credentials',
+          undefined,
+          { attemptedUsername: username }
+        );
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
@@ -108,6 +121,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(userWithCompanies);
     } catch (error) {
       console.error('Login error:', error);
+      
+      // Log login system error
+      await activityLogger.logError(
+        ACTIVITY_ACTIONS.LOGIN,
+        RESOURCE_TYPES.SYSTEM,
+        {
+          userId: 0,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        error as Error,
+        undefined,
+        { attemptedUsername: req.body?.username }
+      );
+      
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -248,9 +276,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const account = await storage.createAccount(accountData);
+      
+      // Log account creation
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.ACCOUNT_CREATE,
+        RESOURCE_TYPES.ACCOUNT,
+        {
+          userId: req.session.userId!,
+          companyId: req.session.currentCompanyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        account.id,
+        undefined,
+        account
+      );
+      
       res.json(account);
     } catch (error) {
       console.error('Create account error:', error);
+      
+      // Log account creation error
+      await activityLogger.logError(
+        ACTIVITY_ACTIONS.ACCOUNT_CREATE,
+        RESOURCE_TYPES.ACCOUNT,
+        {
+          userId: req.session.userId!,
+          companyId: req.session.currentCompanyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        error as Error,
+        undefined,
+        { accountData: req.body }
+      );
+      
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/accounts/:id', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const accountId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      // Get the original account for logging
+      const originalAccount = await db
+        .select()
+        .from(accounts)
+        .where(and(eq(accounts.id, accountId), eq(accounts.companyId, req.session.currentCompanyId)))
+        .limit(1);
+
+      if (!originalAccount || originalAccount.length === 0) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Update the account
+      const [updatedAccount] = await db
+        .update(accounts)
+        .set({
+          ...updateData,
+          updatedAt: new Date().toISOString()
+        })
+        .where(and(eq(accounts.id, accountId), eq(accounts.companyId, req.session.currentCompanyId)))
+        .returning();
+
+      if (!updatedAccount) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Log account update
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.ACCOUNT_UPDATE,
+        RESOURCE_TYPES.ACCOUNT,
+        {
+          userId: req.session.userId!,
+          companyId: req.session.currentCompanyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        accountId,
+        originalAccount[0],
+        updatedAccount
+      );
+
+      res.json(updatedAccount);
+    } catch (error) {
+      console.error('Update account error:', error);
+      
+      // Log account update error
+      await activityLogger.logError(
+        ACTIVITY_ACTIONS.ACCOUNT_UPDATE,
+        RESOURCE_TYPES.ACCOUNT,
+        {
+          userId: req.session.userId!,
+          companyId: req.session.currentCompanyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        error as Error,
+        parseInt(req.params.id),
+        { updateData: req.body }
+      );
+      
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/accounts/:id', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const accountId = parseInt(req.params.id);
+
+      // Get the account before deletion for logging
+      const [accountToDelete] = await db
+        .select()
+        .from(accounts)
+        .where(and(eq(accounts.id, accountId), eq(accounts.companyId, req.session.currentCompanyId)))
+        .limit(1);
+
+      if (!accountToDelete) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Check if account has any transactions - if so, just deactivate instead of delete
+      // For now, we'll allow deletion, but in production you'd check for dependencies
+      const [deletedAccount] = await db
+        .delete(accounts)
+        .where(and(eq(accounts.id, accountId), eq(accounts.companyId, req.session.currentCompanyId)))
+        .returning();
+
+      if (!deletedAccount) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Log account deletion
+      await activityLogger.logCRUD(
+        ACTIVITY_ACTIONS.ACCOUNT_DELETE,
+        RESOURCE_TYPES.ACCOUNT,
+        {
+          userId: req.session.userId!,
+          companyId: req.session.currentCompanyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        accountId,
+        accountToDelete,
+        undefined
+      );
+
+      res.json({ message: 'Account deleted successfully' });
+    } catch (error) {
+      console.error('Delete account error:', error);
+      
+      // Log account deletion error
+      await activityLogger.logError(
+        ACTIVITY_ACTIONS.ACCOUNT_DELETE,
+        RESOURCE_TYPES.ACCOUNT,
+        {
+          userId: req.session.userId!,
+          companyId: req.session.currentCompanyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        error as Error,
+        parseInt(req.params.id)
+      );
+      
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -286,6 +485,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(entry);
     } catch (error) {
       console.error('Create journal entry error:', error);
+      
+      // Log journal entry creation error
+      await activityLogger.logError(
+        ACTIVITY_ACTIONS.JOURNAL_CREATE,
+        RESOURCE_TYPES.JOURNAL_ENTRY,
+        {
+          userId: req.session.userId!,
+          companyId: req.session.currentCompanyId,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent")
+        },
+        error as Error,
+        undefined,
+        { entryData: req.body }
+      );
+      
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/journal-entries/:id', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const entryId = parseInt(req.params.id);
+      const updateData = req.body;
+
+      const updatedEntry = await storage.updateJournalEntry(entryId, updateData);
+      if (!updatedEntry) {
+        return res.status(404).json({ message: 'Journal entry not found' });
+      }
+
+      res.json(updatedEntry);
+    } catch (error) {
+      console.error('Update journal entry error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/journal-entries/:id', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const entryId = parseInt(req.params.id);
+
+      // Check if entry is posted - posted entries shouldn't be deleted
+      const entry = await storage.getJournalEntry(entryId);
+      if (!entry) {
+        return res.status(404).json({ message: 'Journal entry not found' });
+      }
+
+      if (entry.isPosted) {
+        return res.status(400).json({ 
+          message: 'Cannot delete posted journal entries. Please reverse the entry instead.' 
+        });
+      }
+
+      // Delete the entry using direct database call for now
+      await db.delete(journalEntries).where(eq(journalEntries.id, entryId));
+
+      res.json({ message: 'Journal entry deleted successfully' });
+    } catch (error) {
+      console.error('Delete journal entry error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -388,12 +654,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No company selected' });
       }
 
-      // For now, return mock data - in production, calculate from actual transactions
+      // Calculate real metrics from database
+      const companyId = req.session.currentCompanyId;
+      
+      // Total Revenue - sum of all revenue accounts' credit balances
+      const revenueResult = await db.execute(sql`
+        SELECT COALESCE(SUM(jel.credit_amount::numeric - jel.debit_amount::numeric), 0) as total_revenue
+        FROM journal_entry_lines jel
+        JOIN accounts a ON jel.account_id = a.id
+        JOIN journal_entries je ON jel.journal_entry_id = je.id
+        WHERE a.company_id = ${companyId} 
+        AND a.type = 'revenue'
+        AND je.is_posted = true
+      `);
+      
+      // Outstanding Invoices - sum of unpaid invoices
+      const invoicesResult = await db.execute(sql`
+        SELECT COALESCE(SUM(total_amount::numeric), 0) as outstanding_invoices
+        FROM invoices 
+        WHERE company_id = ${companyId} 
+        AND status IN ('sent', 'overdue')
+      `);
+      
+      // Cash Balance - sum of cash accounts
+      const cashResult = await db.execute(sql`
+        SELECT COALESCE(SUM(jel.debit_amount::numeric - jel.credit_amount::numeric), 0) as cash_balance
+        FROM journal_entry_lines jel
+        JOIN accounts a ON jel.account_id = a.id
+        JOIN journal_entries je ON jel.journal_entry_id = je.id
+        WHERE a.company_id = ${companyId} 
+        AND a.type = 'asset' 
+        AND a.sub_type = 'current_asset'
+        AND (a.name ILIKE '%cash%' OR a.name ILIKE '%bank%')
+        AND je.is_posted = true
+      `);
+      
+      // Monthly Expenses - current month expense totals
+      const expensesResult = await db.execute(sql`
+        SELECT COALESCE(SUM(jel.debit_amount::numeric - jel.credit_amount::numeric), 0) as monthly_expenses
+        FROM journal_entry_lines jel
+        JOIN accounts a ON jel.account_id = a.id
+        JOIN journal_entries je ON jel.journal_entry_id = je.id
+        WHERE a.company_id = ${companyId} 
+        AND a.type = 'expense'
+        AND je.is_posted = true
+        AND je.date >= DATE_TRUNC('month', CURRENT_DATE)
+      `);
+
       const metrics = {
-        totalRevenue: 125430,
-        outstandingInvoices: 28940,
-        cashBalance: 45120,
-        monthlyExpenses: 18560,
+        totalRevenue: parseFloat((revenueResult.rows[0] as any)?.total_revenue || '0'),
+        outstandingInvoices: parseFloat((invoicesResult.rows[0] as any)?.outstanding_invoices || '0'),
+        cashBalance: parseFloat((cashResult.rows[0] as any)?.cash_balance || '0'),
+        monthlyExpenses: parseFloat((expensesResult.rows[0] as any)?.monthly_expenses || '0'),
       };
 
       res.json(metrics);
@@ -643,12 +955,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Cannot delete your own account' });
       }
 
-      // TODO: Implement actual user deletion in storage
-      // For now, just return success
-      res.json({ message: 'User deleted successfully' });
+      const success = await storage.deleteUser(userId);
+      if (success) {
+        res.json({ message: 'User deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'User not found' });
+      }
     } catch (error) {
       console.error('Delete user error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: error instanceof Error ? error.message : 'Internal server error' });
     }
   });
 
@@ -656,12 +971,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const companyId = parseInt(req.params.id);
 
-      // TODO: Implement actual company deletion in storage
-      // For now, just return success
-      res.json({ message: 'Company deleted successfully' });
+      const success = await storage.deleteCompany(companyId);
+      if (success) {
+        res.json({ message: 'Company deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Company not found' });
+      }
     } catch (error) {
       console.error('Delete company error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(500).json({ message: error instanceof Error ? error.message : 'Internal server error' });
     }
   });
 
@@ -975,13 +1293,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // TODO: Implement actual data export
-      // This would export all company data including accounts, transactions, etc.
+      // Export all company data including accounts, transactions, etc.
+      const [company, accounts, journalEntries, customers, vendors, invoices, bills] = await Promise.all([
+        storage.getCompany(companyId),
+        storage.getAccountsByCompany(companyId),
+        storage.getJournalEntriesByCompany(companyId),
+        storage.getCustomersByCompany(companyId),
+        storage.getVendorsByCompany(companyId),
+        storage.getInvoicesByCompany(companyId),
+        storage.getBillsByCompany(companyId),
+      ]);
+
       const exportData = {
-        company: await storage.getCompany(companyId),
-        accounts: await storage.getAccountsByCompany(companyId),
-        journalEntries: await storage.getJournalEntriesByCompany(companyId),
+        company,
+        accounts,
+        journalEntries,
+        customers,
+        vendors,
+        invoices,
+        bills,
         exportDate: new Date().toISOString(),
+        totalRecords: accounts.length + journalEntries.length + customers.length + vendors.length + invoices.length + bills.length,
       };
 
       // Log data export
@@ -996,7 +1328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         companyId,
         undefined,
-        { exportType: 'full', recordCount: Object.keys(exportData).length }
+        { exportType: 'full', recordCount: exportData.totalRecords }
       );
 
       res.setHeader('Content-Type', 'application/json');
@@ -1159,7 +1491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      await storage.deleteCompany(companyId);
+      await db.delete(companiesTable).where(eq(companiesTable.id, companyId));
       res.json({ message: 'Company deleted successfully' });
     } catch (error) {
       console.error('Delete admin company error:', error);
@@ -1308,6 +1640,281 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: 'Company restored successfully' });
     } catch (error) {
       console.error('Restore company error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Vendor routes
+  app.get('/api/vendors', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+      
+      const vendors = await storage.getVendorsByCompany(req.session.currentCompanyId);
+      res.json(vendors);
+    } catch (error) {
+      console.error('Get vendors error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/vendors', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const vendorData = {
+        ...req.body,
+        companyId: req.session.currentCompanyId,
+      };
+      
+      const vendor = await storage.createVendor(vendorData);
+      res.json(vendor);
+    } catch (error) {
+      console.error('Create vendor error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Bills routes
+  app.get('/api/bills', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+      
+      const bills = await storage.getBillsByCompany(req.session.currentCompanyId);
+      res.json(bills);
+    } catch (error) {
+      console.error('Get bills error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/bills', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const billData = {
+        ...req.body,
+        companyId: req.session.currentCompanyId,
+      };
+      
+      const bill = await storage.createBill(billData);
+      res.json(bill);
+    } catch (error) {
+      console.error('Create bill error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Account balances route
+  app.get('/api/accounts/balances', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const companyId = req.session.currentCompanyId;
+      
+      // Get account balances using SQL
+      const balancesResult = await db.execute(sql`
+        SELECT 
+          a.id,
+          a.code,
+          a.name,
+          a.type,
+          a.sub_type,
+          COALESCE(SUM(jel.debit_amount::numeric), 0) as total_debits,
+          COALESCE(SUM(jel.credit_amount::numeric), 0) as total_credits,
+          CASE 
+            WHEN a.type IN ('asset', 'expense') THEN 
+              COALESCE(SUM(jel.debit_amount::numeric - jel.credit_amount::numeric), 0)
+            ELSE 
+              COALESCE(SUM(jel.credit_amount::numeric - jel.debit_amount::numeric), 0)
+          END as balance
+        FROM accounts a
+        LEFT JOIN journal_entry_lines jel ON a.id = jel.account_id
+        LEFT JOIN journal_entries je ON jel.journal_entry_id = je.id
+        WHERE a.company_id = ${companyId} 
+        AND a.is_active = true
+        AND (je.is_posted = true OR je.id IS NULL)
+        GROUP BY a.id, a.code, a.name, a.type, a.sub_type
+        ORDER BY a.code
+      `);
+
+      const accountBalances = balancesResult.rows.map((row: any) => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        type: row.type,
+        subType: row.sub_type,
+        totalDebits: parseFloat(row.total_debits || '0'),
+        totalCredits: parseFloat(row.total_credits || '0'),
+        balance: parseFloat(row.balance || '0'),
+      }));
+
+      res.json(accountBalances);
+    } catch (error) {
+      console.error('Get account balances error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Trial Balance route
+  app.get('/api/reports/trial-balance', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const companyId = req.session.currentCompanyId;
+      const { date } = req.query;
+      
+      let dateFilter = '';
+      if (date) {
+        dateFilter = `AND je.date <= '${date}'`;
+      }
+
+      const trialBalanceResult = await db.execute(sql.raw(`
+        SELECT 
+          a.id,
+          a.code,
+          a.name,
+          a.type,
+          CASE 
+            WHEN a.type IN ('asset', 'expense') AND SUM(jel.debit_amount::numeric - jel.credit_amount::numeric) > 0 THEN 
+              SUM(jel.debit_amount::numeric - jel.credit_amount::numeric)
+            ELSE 0
+          END as debit_balance,
+          CASE 
+            WHEN a.type IN ('liability', 'equity', 'revenue') AND SUM(jel.credit_amount::numeric - jel.debit_amount::numeric) > 0 THEN 
+              SUM(jel.credit_amount::numeric - jel.debit_amount::numeric)
+            WHEN a.type IN ('asset', 'expense') AND SUM(jel.debit_amount::numeric - jel.credit_amount::numeric) < 0 THEN 
+              ABS(SUM(jel.debit_amount::numeric - jel.credit_amount::numeric))
+            ELSE 0
+          END as credit_balance
+        FROM accounts a
+        LEFT JOIN journal_entry_lines jel ON a.id = jel.account_id
+        LEFT JOIN journal_entries je ON jel.journal_entry_id = je.id
+        WHERE a.company_id = ${companyId} 
+        AND a.is_active = true
+        AND (je.is_posted = true OR je.id IS NULL)
+        ${dateFilter}
+        GROUP BY a.id, a.code, a.name, a.type
+        HAVING COALESCE(SUM(jel.debit_amount::numeric), 0) != 0 OR COALESCE(SUM(jel.credit_amount::numeric), 0) != 0
+        ORDER BY a.code
+      `));
+
+      const trialBalance = trialBalanceResult.rows.map((row: any) => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        type: row.type,
+        debitBalance: parseFloat(row.debit_balance || '0'),
+        creditBalance: parseFloat(row.credit_balance || '0'),
+      }));
+
+      // Calculate totals
+      const totalDebits = trialBalance.reduce((sum, account) => sum + account.debitBalance, 0);
+      const totalCredits = trialBalance.reduce((sum, account) => sum + account.creditBalance, 0);
+
+      res.json({
+        accounts: trialBalance,
+        totalDebits,
+        totalCredits,
+        isBalanced: Math.abs(totalDebits - totalCredits) < 0.01
+      });
+    } catch (error) {
+      console.error('Get trial balance error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Financial statements route
+  app.get('/api/reports/financial-statements', requireAuth, async (req, res) => {
+    try {
+      if (!req.session.currentCompanyId) {
+        return res.status(400).json({ message: 'No company selected' });
+      }
+
+      const companyId = req.session.currentCompanyId;
+      const { type, startDate, endDate } = req.query;
+      
+      if (type === 'profit-loss') {
+        // Income Statement calculation
+        const plResult = await db.execute(sql.raw(`
+          SELECT 
+            a.type,
+            a.sub_type,
+            a.name,
+            CASE 
+              WHEN a.type = 'revenue' THEN SUM(jel.credit_amount::numeric - jel.debit_amount::numeric)
+              WHEN a.type = 'expense' THEN SUM(jel.debit_amount::numeric - jel.credit_amount::numeric)
+              ELSE 0
+            END as amount
+          FROM accounts a
+          LEFT JOIN journal_entry_lines jel ON a.id = jel.account_id
+          LEFT JOIN journal_entries je ON jel.journal_entry_id = je.id
+          WHERE a.company_id = ${companyId} 
+          AND a.type IN ('revenue', 'expense')
+          AND je.is_posted = true
+          ${startDate ? `AND je.date >= '${startDate}'` : ''}
+          ${endDate ? `AND je.date <= '${endDate}'` : ''}
+          GROUP BY a.type, a.sub_type, a.name, a.id
+          HAVING SUM(jel.debit_amount::numeric) != 0 OR SUM(jel.credit_amount::numeric) != 0
+          ORDER BY a.type, a.sub_type, a.name
+        `));
+
+        const accounts = plResult.rows.map((row: any) => ({
+          type: row.type,
+          subType: row.sub_type,
+          name: row.name,
+          amount: parseFloat(row.amount || '0'),
+        }));
+
+        res.json({ type: 'profit-loss', accounts });
+      } else if (type === 'balance-sheet') {
+        // Balance Sheet calculation
+        const bsResult = await db.execute(sql.raw(`
+          SELECT 
+            a.type,
+            a.sub_type,
+            a.name,
+            CASE 
+              WHEN a.type IN ('asset', 'expense') THEN 
+                SUM(jel.debit_amount::numeric - jel.credit_amount::numeric)
+              ELSE 
+                SUM(jel.credit_amount::numeric - jel.debit_amount::numeric)
+            END as amount
+          FROM accounts a
+          LEFT JOIN journal_entry_lines jel ON a.id = jel.account_id
+          LEFT JOIN journal_entries je ON jel.journal_entry_id = je.id
+          WHERE a.company_id = ${companyId} 
+          AND a.type IN ('asset', 'liability', 'equity')
+          AND (je.is_posted = true OR je.id IS NULL)
+          ${endDate ? `AND je.date <= '${endDate}'` : ''}
+          GROUP BY a.type, a.sub_type, a.name, a.id
+          ORDER BY a.type, a.sub_type, a.name
+        `));
+
+        const accounts = bsResult.rows.map((row: any) => ({
+          type: row.type,
+          subType: row.sub_type,
+          name: row.name,
+          amount: parseFloat(row.amount || '0'),
+        }));
+
+        res.json({ type: 'balance-sheet', accounts });
+      } else {
+        res.status(400).json({ message: 'Invalid report type' });
+      }
+    } catch (error) {
+      console.error('Get financial statements error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });

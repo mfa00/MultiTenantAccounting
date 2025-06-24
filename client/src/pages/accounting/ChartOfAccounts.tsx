@@ -70,6 +70,7 @@ const accountSubTypes = {
 export default function ChartOfAccounts() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string>("");
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -110,8 +111,77 @@ export default function ChartOfAccounts() {
     },
   });
 
+  const updateAccountMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: AccountForm }) => 
+      apiRequest('PUT', `/api/accounts/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
+      setIsDialogOpen(false);
+      setEditingAccount(null);
+      form.reset();
+      toast({
+        title: "Account updated",
+        description: "The account has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update account",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/accounts/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
+      toast({
+        title: "Account deleted",
+        description: "The account has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error", 
+        description: error.message || "Failed to delete account",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: AccountForm) => {
-    createAccountMutation.mutate(data);
+    if (editingAccount) {
+      updateAccountMutation.mutate({ id: editingAccount.id, data });
+    } else {
+      createAccountMutation.mutate(data);
+    }
+  };
+
+  const handleEditAccount = (account: Account) => {
+    setEditingAccount(account);
+    setSelectedType(account.type);
+    form.reset({
+      code: account.code,
+      name: account.name,
+      type: account.type,
+      subType: account.subType || "",
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteAccount = (account: Account) => {
+    if (confirm(`Are you sure you want to delete the account "${account.name}"?`)) {
+      deleteAccountMutation.mutate(account.id);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingAccount(null);
+    setSelectedType("");
+    form.reset();
   };
 
   const getTypeColor = (type: string) => {
@@ -171,7 +241,7 @@ export default function ChartOfAccounts() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Account</DialogTitle>
+              <DialogTitle>{editingAccount ? 'Edit Account' : 'Create New Account'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -256,12 +326,15 @@ export default function ChartOfAccounts() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
+                  onClick={handleCloseDialog}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createAccountMutation.isPending}>
-                  {createAccountMutation.isPending ? "Creating..." : "Create Account"}
+                <Button type="submit" disabled={createAccountMutation.isPending || updateAccountMutation.isPending}>
+                  {editingAccount 
+                    ? (updateAccountMutation.isPending ? "Updating..." : "Update Account")
+                    : (createAccountMutation.isPending ? "Creating..." : "Create Account")
+                  }
                 </Button>
               </div>
             </form>
@@ -312,10 +385,15 @@ export default function ChartOfAccounts() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditAccount(account)}>
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="text-destructive">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-destructive"
+                            onClick={() => handleDeleteAccount(account)}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>

@@ -1,30 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 
 // Global state for triggering page actions
 let globalTriggers: Record<string, () => void> = {};
 
 export function usePageActions() {
-  const [triggers, setTriggers] = useState<Record<string, () => void>>({});
+  const registerTrigger = useCallback((actionType: string, callback: () => void) => {
+    globalTriggers[actionType] = callback;
+  }, []);
 
-  useEffect(() => {
-    // Update global triggers when local triggers change
-    globalTriggers = { ...globalTriggers, ...triggers };
-  }, [triggers]);
-
-  const registerTrigger = (actionType: string, callback: () => void) => {
-    setTriggers(prev => ({
-      ...prev,
-      [actionType]: callback
-    }));
-  };
-
-  const triggerAction = (actionType: string) => {
+  const triggerAction = useCallback((actionType: string) => {
     if (globalTriggers[actionType]) {
       globalTriggers[actionType]();
       return true;
     }
     return false;
-  };
+  }, []);
 
   return {
     registerTrigger,

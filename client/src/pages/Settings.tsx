@@ -1056,19 +1056,27 @@ export default function Settings() {
                       variant="outline"
                       onClick={async () => {
                         try {
-                          const response = await fetch(`/api/company/${currentCompany?.id}/export`);
+                          const response = await fetch(`/api/company/${currentCompany?.id}/export`, {
+                            credentials: 'include'
+                          });
                           if (!response.ok) {
                             throw new Error('Failed to export data');
                           }
                           
-                          // Trigger download
-                          const blob = await response.blob();
+                          // Get JSON data directly instead of blob for better memory efficiency
+                          const data = await response.json();
+                          const jsonString = JSON.stringify(data, null, 2);
+                          
+                          // Create optimized blob and trigger download
+                          const blob = new Blob([jsonString], { type: 'application/json' });
                           const url = window.URL.createObjectURL(blob);
                           const a = document.createElement('a');
                           a.href = url;
-                          a.download = `company-${currentCompany?.code}-export-${new Date().getTime()}.json`;
+                          a.download = `company-${currentCompany?.code}-export-${new Date().toISOString().split('T')[0]}.json`;
                           document.body.appendChild(a);
                           a.click();
+                          
+                          // Clean up immediately
                           window.URL.revokeObjectURL(url);
                           document.body.removeChild(a);
                           
@@ -1077,6 +1085,7 @@ export default function Settings() {
                             description: "Company data has been exported successfully.",
                           });
                         } catch (error) {
+                          console.error('Export error:', error);
                           toast({
                             title: "Export failed",
                             description: "Failed to export company data. Please try again.",

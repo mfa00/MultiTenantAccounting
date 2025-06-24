@@ -6,8 +6,22 @@ import {
   type JournalEntry, type InsertJournalEntry, type JournalEntryLine, type InsertJournalEntryLine,
   type Customer, type InsertCustomer, type Vendor, type InsertVendor,
   type Invoice, type InsertInvoice, type Bill, type InsertBill,
-  type CompanySettings, type InsertCompanySettings
+  type CompanySettings, type InsertCompanySettings, type ActivityLog
 } from "@shared/schema";
+
+// Global admin types
+interface GlobalUser {
+  id: number;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  globalRole: string | null;
+  isActive: boolean | null;
+  createdAt: Date | null;
+  lastLogin: string | null;
+  companiesCount: number;
+}
 import { db } from "./db";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 
@@ -25,7 +39,6 @@ export interface IStorage {
   getAllCompanies(): Promise<Company[]>;
   createCompany(company: InsertCompany): Promise<Company>;
   updateCompany(id: number, company: Partial<InsertCompany>): Promise<Company | undefined>;
-  deleteCompany(id: number): Promise<void>;
 
   // User-Company methods
   getUserCompany(userId: number, companyId: number): Promise<UserCompany | undefined>;
@@ -87,6 +100,12 @@ export interface IStorage {
   getCompanySettings(companyId: number): Promise<CompanySettings | undefined>;
   createCompanySettings(settings: InsertCompanySettings): Promise<CompanySettings>;
   updateCompanySettings(companyId: number, settings: Partial<InsertCompanySettings>): Promise<CompanySettings | undefined>;
+
+  // Delete user with proper cascade handling
+  deleteUser(userId: number): Promise<boolean>;
+
+  // Delete company with proper cascade handling
+  deleteCompany(companyId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -157,6 +176,8 @@ export class DatabaseStorage implements IStorage {
     const [company] = await db.update(companies).set(updateCompany).where(eq(companies.id, id)).returning();
     return company || undefined;
   }
+
+
 
   // User-Company methods
   async getUserCompany(userId: number, companyId: number): Promise<UserCompany | undefined> {
@@ -272,25 +293,24 @@ export class DatabaseStorage implements IStorage {
   // Vendor methods
   async getVendor(id: number): Promise<Vendor | undefined> {
     const [vendor] = await db.select().from(vendors).where(eq(vendors.id, id));
-    return vendor || undefined;
-  }
-
-  async getVendorsByCompany(companyId: number): Promise<Vendor[]> {
-    return await db
-      .select()
-      .from(vendors)
-      .where(and(eq(vendors.companyId, companyId), eq(vendors.isActive, true)))
-      .orderBy(asc(vendors.name));
-  }
-
-  async createVendor(insertVendor: InsertVendor): Promise<Vendor> {
-    const [vendor] = await db.insert(vendors).values(insertVendor).returning();
     return vendor;
   }
 
-  async updateVendor(id: number, updateVendor: Partial<InsertVendor>): Promise<Vendor | undefined> {
-    const [vendor] = await db.update(vendors).set(updateVendor).where(eq(vendors.id, id)).returning();
-    return vendor || undefined;
+  async getVendorsByCompany(companyId: number): Promise<Vendor[]> {
+    return await db.select().from(vendors).where(eq(vendors.companyId, companyId));
+  }
+
+  async createVendor(vendor: InsertVendor): Promise<Vendor> {
+    const [newVendor] = await db.insert(vendors).values(vendor).returning();
+    if (!newVendor) {
+      throw new Error('Failed to create vendor');
+    }
+    return newVendor;
+  }
+
+  async updateVendor(id: number, vendor: Partial<InsertVendor>): Promise<Vendor | undefined> {
+    const [updatedVendor] = await db.update(vendors).set(vendor).where(eq(vendors.id, id)).returning();
+    return updatedVendor;
   }
 
   // Invoice methods
@@ -320,25 +340,24 @@ export class DatabaseStorage implements IStorage {
   // Bill methods
   async getBill(id: number): Promise<Bill | undefined> {
     const [bill] = await db.select().from(bills).where(eq(bills.id, id));
-    return bill || undefined;
-  }
-
-  async getBillsByCompany(companyId: number): Promise<Bill[]> {
-    return await db
-      .select()
-      .from(bills)
-      .where(eq(bills.companyId, companyId))
-      .orderBy(desc(bills.date));
-  }
-
-  async createBill(insertBill: InsertBill): Promise<Bill> {
-    const [bill] = await db.insert(bills).values(insertBill).returning();
     return bill;
   }
 
-  async updateBill(id: number, updateBill: Partial<InsertBill>): Promise<Bill | undefined> {
-    const [bill] = await db.update(bills).set(updateBill).where(eq(bills.id, id)).returning();
-    return bill || undefined;
+  async getBillsByCompany(companyId: number): Promise<Bill[]> {
+    return await db.select().from(bills).where(eq(bills.companyId, companyId));
+  }
+
+  async createBill(bill: InsertBill): Promise<Bill> {
+    const [newBill] = await db.insert(bills).values(bill).returning();
+    if (!newBill) {
+      throw new Error('Failed to create bill');
+    }
+    return newBill;
+  }
+
+  async updateBill(id: number, bill: Partial<InsertBill>): Promise<Bill | undefined> {
+    const [updatedBill] = await db.update(bills).set(bill).where(eq(bills.id, id)).returning();
+    return updatedBill;
   }
 
   // Global admin methods
@@ -351,68 +370,52 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllCompaniesWithStats(): Promise<Company[]> {
-    const companies = await this.getAllCompanies();
-    
-    // Add user count and last activity for each company
-    const companiesWithStats = await Promise.all(
-      companies.map(async (company) => {
-        const userCount = await db
-          .select({ count: sql`COUNT(*)` })
-          .from(userCompanies)
-          .where(eq(userCompanies.companyId, company.id));
-        
-        // Get last activity (this would be from a real activity log table)
-        const lastActivity = null; // Implement based on your activity tracking
-        
-        return {
-          ...company,
-          userCount: userCount[0]?.count || 0,
-          lastActivity,
-        };
-      })
-    );
-    
-    return companiesWithStats;
+    // This would be enhanced with actual statistics
+    return this.getAllCompanies();
   }
 
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users);
+    return await db.select().from(users).orderBy(asc(users.username));
   }
 
   async getAllUsersWithStats(): Promise<GlobalUser[]> {
-    const users = await this.getAllUsers();
-    
-    const usersWithStats = await Promise.all(
-      users.map(async (user) => {
-        const companiesCount = await db
-          .select({ count: sql`COUNT(*)` })
-          .from(userCompanies)
-          .where(eq(userCompanies.userId, user.id));
-        
-        return {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          globalRole: user.globalRole,
-          isActive: user.isActive,
-          createdAt: user.createdAt?.toISOString() || '',
-          lastLogin: null, // Would come from session tracking
-          companiesCount: companiesCount[0]?.count || 0,
-        };
+    const usersWithStats = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        globalRole: users.globalRole,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        companiesCount: sql<number>`COUNT(DISTINCT ${userCompanies.companyId})`,
       })
-    );
-    
-    return usersWithStats;
+      .from(users)
+      .leftJoin(userCompanies, eq(users.id, userCompanies.userId))
+      .groupBy(users.id)
+      .orderBy(asc(users.username));
+
+    return usersWithStats.map(user => ({
+      ...user,
+      lastLogin: null, // TODO: Add lastLogin field to users table
+      companiesCount: user.companiesCount || 0,
+    }));
   }
 
   async getTransactionCount(): Promise<number> {
-    const result = await db
-      .select({ count: sql`COUNT(*)` })
-      .from(journalEntries);
-    
-    return result[0]?.count || 0;
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(journalEntries);
+    return result?.count || 0;
+  }
+
+  async getUserCount(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(users);
+    return result?.count || 0;
+  }
+
+  async getCompanyCount(): Promise<number> {
+    const [result] = await db.select({ count: sql<number>`count(*)` }).from(companies);
+    return result?.count || 0;
   }
 
   async companyHasData(companyId: number): Promise<boolean> {
@@ -426,20 +429,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActivityLogs(limit: number): Promise<ActivityLog[]> {
-    // This would come from a dedicated activity_logs table
-    // For now, return mock data
-    return [
-      {
-        id: 1,
-        userId: 1,
-        userName: "admin",
-        action: "CREATE",
-        resource: "COMPANY",
-        details: "Created company: Acme Corporation",
-        timestamp: new Date().toISOString(),
-        ipAddress: "192.168.1.100",
-      },
-    ];
+    // Fetch real activity logs from database
+    const logs = await db
+      .select()
+      .from(activityLogs)
+      .orderBy(desc(activityLogs.timestamp))
+      .limit(limit);
+    
+    return logs;
   }
 
   async logActivity(
@@ -468,6 +465,150 @@ export class DatabaseStorage implements IStorage {
   async updateCompanySettings(companyId: number, settings: Partial<InsertCompanySettings>): Promise<CompanySettings | undefined> {
     const [updatedSettings] = await db.update(companySettings).set(settings).where(eq(companySettings.companyId, companyId)).returning();
     return updatedSettings || undefined;
+  }
+
+  // Delete user with proper cascade handling
+  async deleteUser(userId: number): Promise<boolean> {
+    try {
+      await db.transaction(async (tx) => {
+        // Check if user exists
+        const userResult = await tx
+          .select()
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+        
+        if (userResult.length === 0) {
+          throw new Error('User not found');
+        }
+
+        // Delete user-company relationships
+        await tx
+          .delete(userCompanies)
+          .where(eq(userCompanies.userId, userId));
+
+        // Delete activity logs where this user was the actor
+        await tx
+          .delete(activityLogs)
+          .where(eq(activityLogs.userId, userId));
+
+        // Update journal entries to remove user reference (set to null)
+        await tx
+          .update(journalEntries)
+          .set({ createdBy: null })
+          .where(eq(journalEntries.createdBy, userId));
+
+        // Update invoices to remove user reference
+        await tx
+          .update(invoices)
+          .set({ createdBy: null })
+          .where(eq(invoices.createdBy, userId));
+
+        // Update bills to remove user reference
+        await tx
+          .update(bills)
+          .set({ createdBy: null })
+          .where(eq(bills.createdBy, userId));
+
+        // Finally delete the user
+        await tx
+          .delete(users)
+          .where(eq(users.id, userId));
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Delete user error:', error);
+      throw error;
+    }
+  }
+
+  // Delete company with proper cascade handling
+  async deleteCompany(companyId: number): Promise<boolean> {
+    try {
+      await db.transaction(async (tx) => {
+        // Check if company exists
+        const companyResult = await tx
+          .select()
+          .from(companies)
+          .where(eq(companies.id, companyId))
+          .limit(1);
+        
+        if (companyResult.length === 0) {
+          throw new Error('Company not found');
+        }
+
+        // Check for assigned users
+        const userCount = await tx
+          .select({ count: sql<number>`count(*)` })
+          .from(userCompanies)
+          .where(eq(userCompanies.companyId, companyId));
+        
+        if (userCount[0].count > 0) {
+          throw new Error('Cannot delete company with assigned users. Please remove all user assignments first.');
+        }
+
+        // Delete all company-related data in the correct order (FK dependencies)
+        
+        // Delete journal entry lines first
+        await tx.execute(sql`
+          DELETE FROM journal_entry_lines 
+          WHERE journal_entry_id IN (
+            SELECT id FROM journal_entries WHERE company_id = ${companyId}
+          )
+        `);
+
+        // Delete journal entries
+        await tx
+          .delete(journalEntries)
+          .where(eq(journalEntries.companyId, companyId));
+
+        // Delete bills
+        await tx
+          .delete(bills)
+          .where(eq(bills.companyId, companyId));
+
+        // Delete invoices
+        await tx
+          .delete(invoices)
+          .where(eq(invoices.companyId, companyId));
+
+        // Delete vendors
+        await tx
+          .delete(vendors)
+          .where(eq(vendors.companyId, companyId));
+
+        // Delete customers
+        await tx
+          .delete(customers)
+          .where(eq(customers.companyId, companyId));
+
+        // Delete accounts
+        await tx
+          .delete(accounts)
+          .where(eq(accounts.companyId, companyId));
+
+        // Delete activity logs
+        await tx
+          .delete(activityLogs)
+          .where(eq(activityLogs.companyId, companyId));
+
+        // Delete company settings
+        await tx
+          .delete(companySettings)
+          .where(eq(companySettings.companyId, companyId));
+
+        // Finally delete the company
+        await tx
+          .delete(companies)
+          .where(eq(companies.id, companyId));
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Delete company error:', error);
+      throw error;
+    }
   }
 }
 

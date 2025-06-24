@@ -70,6 +70,7 @@ type JournalEntryForm = z.infer<typeof journalEntrySchema>;
 
 export default function JournalEntries() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const { currentCompany } = useCompany();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -143,6 +144,7 @@ export default function JournalEntries() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
       setIsDialogOpen(false);
+      setEditingEntry(null);
       form.reset();
       toast({
         title: "Journal entry created",
@@ -158,8 +160,88 @@ export default function JournalEntries() {
     },
   });
 
+  const updateEntryMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: JournalEntryForm }) => 
+      apiRequest('PUT', `/api/journal-entries/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+      setIsDialogOpen(false);
+      setEditingEntry(null);
+      form.reset();
+      toast({
+        title: "Journal entry updated",
+        description: "The journal entry has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update journal entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteEntryMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/journal-entries/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/journal-entries'] });
+      toast({
+        title: "Journal entry deleted",
+        description: "The journal entry has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete journal entry",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: JournalEntryForm) => {
-    createEntryMutation.mutate(data);
+    if (editingEntry) {
+      updateEntryMutation.mutate({ id: editingEntry.id, data });
+    } else {
+      createEntryMutation.mutate(data);
+    }
+  };
+
+  const handleEditEntry = (entry: JournalEntry) => {
+    setEditingEntry(entry);
+    form.reset({
+      entryNumber: entry.entryNumber,
+      date: entry.date.split('T')[0],
+      description: entry.description,
+      reference: entry.reference || "",
+      lines: [
+        { accountId: 0, description: "", debitAmount: "0.00", creditAmount: "0.00" },
+        { accountId: 0, description: "", debitAmount: "0.00", creditAmount: "0.00" },
+      ],
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteEntry = (entry: JournalEntry) => {
+    if (entry.isPosted) {
+      toast({
+        title: "Cannot delete posted entry",
+        description: "Posted journal entries cannot be deleted. Please reverse the entry instead.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (confirm(`Are you sure you want to delete journal entry "${entry.entryNumber}"?`)) {
+      deleteEntryMutation.mutate(entry.id);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingEntry(null);
+    form.reset();
   };
 
   const addLine = () => {
@@ -220,7 +302,7 @@ export default function JournalEntries() {
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Journal Entry</DialogTitle>
+              <DialogTitle>{editingEntry ? 'Edit Journal Entry' : 'Create Journal Entry'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
@@ -396,12 +478,15 @@ export default function JournalEntries() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
+                  onClick={handleCloseDialog}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createEntryMutation.isPending || !isBalanced}>
-                  {createEntryMutation.isPending ? "Creating..." : "Create Entry"}
+                <Button type="submit" disabled={createEntryMutation.isPending || updateEntryMutation.isPending || !isBalanced}>
+                  {editingEntry 
+                    ? (updateEntryMutation.isPending ? "Updating..." : "Update Entry")
+                    : (createEntryMutation.isPending ? "Creating..." : "Create Entry")
+                  }
                 </Button>
               </div>
             </form>
@@ -450,11 +535,16 @@ export default function JournalEntries() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditEntry(entry)}>
                             <Edit className="w-4 h-4" />
                           </Button>
                           {!entry.isPosted && (
-                            <Button variant="ghost" size="sm" className="text-destructive">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-destructive"
+                              onClick={() => handleDeleteEntry(entry)}
+                            >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           )}

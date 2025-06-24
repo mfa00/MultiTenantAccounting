@@ -9,6 +9,9 @@ import Dashboard from "@/pages/Dashboard";
 import AppLayout from "@/components/layout/AppLayout";
 import ChartOfAccounts from "@/pages/accounting/ChartOfAccounts";
 import GeneralLedger from "@/pages/accounting/GeneralLedger";
+import AccountsReceivable from "@/pages/accounting/AccountsReceivable";
+import AccountsPayable from "@/pages/accounting/AccountsPayable";
+import BankReconciliation from "@/pages/accounting/BankReconciliation";
 import JournalEntries from "@/pages/transactions/JournalEntries";
 import Invoices from "@/pages/transactions/Invoices";
 import FinancialStatements from "@/pages/reports/FinancialStatements";
@@ -52,6 +55,9 @@ function Router() {
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/chart-of-accounts" component={() => <ProtectedRoute component={ChartOfAccounts} />} />
       <Route path="/general-ledger" component={() => <ProtectedRoute component={GeneralLedger} />} />
+      <Route path="/accounts-receivable" component={() => <ProtectedRoute component={AccountsReceivable} />} />
+      <Route path="/accounts-payable" component={() => <ProtectedRoute component={AccountsPayable} />} />
+      <Route path="/bank-reconciliation" component={() => <ProtectedRoute component={BankReconciliation} />} />
       <Route path="/journal-entries" component={() => <ProtectedRoute component={JournalEntries} />} />
       <Route path="/invoices" component={() => <ProtectedRoute component={Invoices} />} />
       <Route path="/financial-statements" component={() => <ProtectedRoute component={FinancialStatements} />} />
