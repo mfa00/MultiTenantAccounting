@@ -324,12 +324,27 @@ pm2 restart accountflow-pro
 
 ## Architecture
 
-- **Frontend**: React with TypeScript, Vite, shadcn/ui
+- **Frontend**: React with TypeScript, Vite, shadcn/ui, routing via `wouter`
 - **Backend**: Express.js with TypeScript
 - **Database**: PostgreSQL (Neon serverless)
 - **ORM**: Drizzle ORM
 - **Authentication**: Session-based with bcrypt
 - **Build**: Vite for frontend, esbuild for backend
+
+### Module/Submodule Navigation
+
+The UI is organized by modules with submodules. The first module implemented is `Accounting` with the following submodules. A dedicated home page at `/accounting` gives quick access tiles similar to ERP dashboards.
+
+- Accounting (module)
+  - Chart of Accounts
+  - General Ledger
+  - Accounts Receivable
+  - Accounts Payable
+  - Bank Reconciliation
+
+Routing lives in `client/src/App.tsx` and the sidebar configuration in `client/src/components/layout/Sidebar.tsx`. The Accounting module home is at `client/src/pages/accounting/AccountingHome.tsx`.
+
+Permissions for visibility are enforced in the sidebar through `usePermissions`. The Accounting module requires `ACCOUNTS_VIEW` at minimum.
 
 ## Security Notes
 
@@ -350,4 +365,4 @@ For issues or questions:
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License.# MultiTenantAccounting
